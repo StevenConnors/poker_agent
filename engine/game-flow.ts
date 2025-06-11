@@ -111,14 +111,20 @@ function postBlinds(gameState: GameState): GameState {
     throw new Error('Cannot determine blind positions');
   }
   
+  // Calculate blind amounts before modifying stacks
+  const sbPlayer = gameState.table.seats[smallBlind].player!;
+  const bbPlayer = gameState.table.seats[bigBlind].player!;
+  const sbAmount = Math.min(gameState.table.smallBlind, sbPlayer.stack);
+  const bbAmount = Math.min(gameState.table.bigBlind, bbPlayer.stack);
+  
   const updatedSeats = gameState.table.seats.map((seat, index) => {
     if (!seat.player) return seat;
     
     let blindAmount = 0;
     if (index === smallBlind) {
-      blindAmount = Math.min(gameState.table.smallBlind, seat.player.stack);
+      blindAmount = sbAmount;
     } else if (index === bigBlind) {
-      blindAmount = Math.min(gameState.table.bigBlind, seat.player.stack);
+      blindAmount = bbAmount;
     }
     
     if (blindAmount > 0) {
@@ -136,8 +142,8 @@ function postBlinds(gameState: GameState): GameState {
   
   // Update betting round with blind amounts
   const betsThisRound = Array(gameState.table.seats.length).fill(0);
-  betsThisRound[smallBlind] = Math.min(gameState.table.smallBlind, gameState.table.seats[smallBlind].player!.stack + gameState.table.smallBlind);
-  betsThisRound[bigBlind] = Math.min(gameState.table.bigBlind, gameState.table.seats[bigBlind].player!.stack + gameState.table.bigBlind);
+  betsThisRound[smallBlind] = sbAmount;
+  betsThisRound[bigBlind] = bbAmount;
   
   return {
     ...gameState,
@@ -148,13 +154,13 @@ function postBlinds(gameState: GameState): GameState {
     bettingRound: {
       ...gameState.bettingRound,
       betsThisRound,
-      currentBet: gameState.table.bigBlind,
+      currentBet: bbAmount,
       actionIndex: getNextActivePlayerAfterBlinds(gameState, bigBlind)
     },
     potManager: {
       ...gameState.potManager,
-      mainPot: betsThisRound.reduce((sum, bet) => sum + bet, 0),
-      totalPot: betsThisRound.reduce((sum, bet) => sum + bet, 0)
+      mainPot: sbAmount + bbAmount,
+      totalPot: sbAmount + bbAmount
     }
   };
 }
