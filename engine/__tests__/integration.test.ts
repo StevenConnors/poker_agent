@@ -661,4 +661,151 @@ describe('Multi-Hand Poker Integration', () => {
       console.log(`Final stacks: ${finalPlayers.map(s => `${s.player!.name}:${s.player!.stack}`).join(', ')}`);
     });
   });
+
+  describe('All-In Scenarios', () => {
+    test('should continue through all stages when all players go all-in at flop', () => {
+      console.log('\n=== INTEGRATION TEST: All-In at Flop ===');
+      
+      // Set up game and start hand
+      setupGame();
+      startHand('all-in-flop-test-seed');
+      
+      console.log(`Initial stage: ${gameState.stage}`);
+      expect(gameState.stage).toBe('preflop');
+      expect(gameState.board.length).toBe(0);
+      
+      // Verify initial setup
+      expect(gameState.table.seats.filter(s => s.player).length).toBe(PLAYER_COUNT);
+      
+      // === PREFLOP: All players call to see the flop ===
+      console.log('\n--- PREFLOP BETTING ---');
+      
+      // Skip to flop by having everyone call
+      while (gameState.stage === 'preflop') {
+        const currentPlayer = getCurrentPlayer();
+        const legalActions = GameManager.getLegalActions(gameId);
+        
+        if (!currentPlayer || !legalActions || legalActions.length === 0) break;
+        
+        // Take call action if available, otherwise first available action
+        const callAction = legalActions.find(a => a.type === 'call');
+        const actionToTake = callAction || legalActions[0];
+        
+        console.log(`${currentPlayer.name} takes action: ${actionToTake.type} ${actionToTake.amount || ''}`);
+        applyAction(actionToTake);
+      }
+      
+      expect(gameState.stage).toBe('flop');
+      expect(gameState.board.length).toBe(3);
+      console.log(`Flop stage reached, board: ${gameState.board.length} cards`);
+      
+      // === FLOP: All players go all-in ===
+      console.log('\n--- FLOP BETTING: All players go all-in ---');
+      
+      // Track initial player stacks
+      const initialStacks = gameState.table.seats.map(seat => ({
+        playerId: seat.player?.id,
+        name: seat.player?.name,
+        stack: seat.player?.stack || 0
+      }));
+      
+      console.log('Initial stacks:', initialStacks.filter(p => p.playerId).map(p => `${p.name}: ${p.stack}`).join(', '));
+      
+      // Force all players to go all-in by making the first player go all-in, then others call/raise
+      let firstPlayerWentAllIn = false;
+      let allInCount = 0;
+      
+      while (gameState.stage === 'flop' && allInCount < PLAYER_COUNT) {
+        const currentPlayer = getCurrentPlayer();
+        const legalActions = GameManager.getLegalActions(gameId);
+        
+        if (!currentPlayer || !legalActions || legalActions.length === 0) {
+          console.log('No more legal actions available');
+          break;
+        }
+        
+        console.log(`${currentPlayer.name} (stack: ${currentPlayer.stack}) legal actions: ${legalActions.map(a => `${a.type}${a.amount ? `(${a.amount})` : ''}`).join(', ')}`);
+        
+        let actionToTake;
+        
+        if (!firstPlayerWentAllIn) {
+          // First player goes all-in
+          actionToTake = legalActions.find(a => a.type === 'all-in') || legalActions.find(a => a.type === 'bet');
+          firstPlayerWentAllIn = true;
+          console.log(`First player ${currentPlayer.name} going all-in`);
+        } else {
+          // Other players call the all-in (which might make them all-in too)
+          actionToTake = legalActions.find(a => a.type === 'call') || legalActions.find(a => a.type === 'all-in');
+          console.log(`${currentPlayer.name} calling all-in`);
+        }
+        
+        if (!actionToTake) {
+          actionToTake = legalActions[0]; // Fallback to first available action
+        }
+        
+        console.log(`${currentPlayer.name} takes action: ${actionToTake.type} ${actionToTake.amount || ''}`);
+        applyAction(actionToTake);
+        
+        // Count how many players are now all-in
+        allInCount = gameState.table.seats.filter(seat => 
+          seat.player && seat.player.status === 'all-in'
+        ).length;
+        
+        console.log(`Players all-in: ${allInCount}/${PLAYER_COUNT}`);
+      }
+      
+      // Verify we progressed past the flop
+      console.log(`After flop betting - Stage: ${gameState.stage}, Board: ${gameState.board.length} cards`);
+      expect(gameState.stage).not.toBe('flop');
+      expect(gameState.board.length).toBeGreaterThan(3);
+      
+      // === VERIFY PROPER PROGRESSION ===
+      console.log('\n--- VERIFICATION ---');
+      
+      // Check that all or most players are all-in
+      const allInPlayers = gameState.table.seats.filter(seat => 
+        seat.player && seat.player.status === 'all-in'
+      );
+      
+      console.log(`All-in players: ${allInPlayers.map(s => s.player!.name).join(', ')}`);
+      expect(allInPlayers.length).toBeGreaterThanOrEqual(2); // At least 2 players should be all-in
+      
+      // If we're not at showdown yet and all players who can act are all-in, 
+      // the game should automatically progress to showdown
+      if (gameState.stage !== 'showdown') {
+        const activePlayers = gameState.table.seats.filter(seat => 
+          seat.player && seat.player.status === 'active'
+        );
+        
+        if (activePlayers.length === 0) {
+          console.log('All players are all-in, should be at showdown or auto-advancing');
+          expect(['river', 'showdown']).toContain(gameState.stage);
+        }
+      }
+      
+      // Ensure all community cards are dealt (5 total)
+      expect(gameState.board.length).toBe(5);
+      console.log(`Final board: ${gameState.board.length} cards`);
+      
+      // Game should be at showdown
+      expect(['river', 'showdown']).toContain(gameState.stage);
+      
+      // === COMPLETE THE HAND ===
+      console.log('\n--- COMPLETING HAND ---');
+      
+      if (gameState.stage !== 'showdown') {
+        // If somehow we're still at river, complete the hand normally
+        playToShowdown();
+      }
+      
+      expect(gameState.stage).toBe('showdown');
+      completeShowdown();
+      
+      // Verify hand completed successfully
+      expect(gameState.stage).toBe('init');
+      expect(gameState.handsPlayed).toBe(1);
+      
+      console.log('=== Integration test completed successfully ===');
+    });
+  });
 }); 

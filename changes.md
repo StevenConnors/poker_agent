@@ -244,7 +244,9 @@ The HTTP API serves as the contract between clients and game engine, ensuring co
 
 
 ## Bugs I found 
-- If a new player joins halfway through a hand, (eg during preflop), we never made it to the flop even tho both players are checking. but, it does correctly show the new player as "waiting".
+- need a way to have players leave the the table once their stack is 0.
+
+
 
 # Poker App Changes Summary
 

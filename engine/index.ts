@@ -156,11 +156,18 @@ function isBettingRoundComplete(gs: GameState): boolean {
     const seatIndex = player.seatIndex!;
     const hasActed = gs.bettingRound.playersActed[seatIndex];
     const hasMatchedBet = bets[seatIndex] === maxB;
-    const isAllIn = player.stack === 0;
+    const isAllIn = player.status === 'all-in'; // Use status instead of stack === 0
     const hasFolded = player.status === 'folded';
     
-    // Folded players are always considered complete (they don't need to act in future betting rounds)
-    return hasFolded || (hasActed && (hasMatchedBet || isAllIn));
+    // Folded players are always considered complete
+    if (hasFolded) return true;
+    
+    // All-in players are considered complete regardless of whether they acted this round
+    // (they might have gone all-in in a previous betting round)
+    if (isAllIn) return true;
+    
+    // Active players must have acted and matched the max bet
+    return hasActed && hasMatchedBet;
   });
 }
 
@@ -170,8 +177,9 @@ function advanceBettingRound(gs: GameState): GameState {
   const updatedPot = calculatePots(gs);
   
   // Reset betting round for next stage
-  const activePlayers = getActivePlayers(gs);
-  const firstActiveIndex = activePlayers.length > 0 ? activePlayers[0].seatIndex! : 0;
+  // Get only players who can actually act (not all-in, not folded)
+  const playersWhoCanAct = getActivePlayers(gs).filter(p => p.status === 'active');
+  const firstActiveIndex = playersWhoCanAct.length > 0 ? playersWhoCanAct[0].seatIndex! : 0;
   
   return {
     ...gs,
@@ -375,15 +383,27 @@ export function applyAction(gs: GameState, a: Action): Result<GameState, PokerEr
       console.log(`🔄 CONTEXT: Only ${playersStillInHand.length} player(s) remain, calculating pots before showdown`);
       newGameState.potManager = calculatePots(newGameState);
       newGameState = { ...newGameState, stage: 'showdown' };
-    } else if (playersWhoCanAct.length <= 1) {
-      // Only one player can act (others are all-in), skip to showdown (calculate pots first)
-      console.log(`🔄 CONTEXT: Only ${playersWhoCanAct.length} player(s) can act (others all-in), calculating pots before showdown`);
-      newGameState.potManager = calculatePots(newGameState);
-      newGameState = { ...newGameState, stage: 'showdown' };
     } else if (newGameState.stage !== 'river') {
-      // Advance to next stage (this will call calculatePots in advanceBettingRound)
+      // Continue to next stage regardless of how many players can act
+      // This ensures all community cards are dealt even when players are all-in
       console.log(`🔄 CONTEXT: Advancing to next stage (${newGameState.stage} -> next), will calculate pots in advanceBettingRound`);
       newGameState = advanceGameStage(newGameState);
+      
+      // If no players can act in the new stage (all are all-in), skip betting and continue
+      const playersWhoCanActNextStage = getActivePlayers(newGameState).filter(p => p.status === 'active');
+      if (playersWhoCanActNextStage.length === 0 && newGameState.stage !== 'showdown') {
+        // All players are all-in, continue automatically through remaining stages
+        while (newGameState.stage !== 'river' && newGameState.stage !== 'showdown') {
+          console.log(`🔄 CONTEXT: All players all-in, auto-advancing through ${newGameState.stage}`);
+          newGameState = advanceGameStage(newGameState);
+        }
+        // After reaching river with all players all-in, go to showdown
+        if (newGameState.stage === 'river') {
+          console.log(`🔄 CONTEXT: River reached with all players all-in, going to showdown`);
+          newGameState.potManager = calculatePots(newGameState);
+          newGameState = { ...newGameState, stage: 'showdown' };
+        }
+      }
     } else {
       // River betting complete, go to showdown (calculate pots first)
       console.log(`🔄 CONTEXT: River betting complete, calculating pots before showdown`);
