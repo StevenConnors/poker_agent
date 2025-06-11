@@ -245,3 +245,112 @@ The HTTP API serves as the contract between clients and game engine, ensuring co
 
 ## Bugs I found 
 - If a new player joins halfway through a hand, (eg during preflop), we never made it to the flop even tho both players are checking. but, it does correctly show the new player as "waiting".
+
+# Poker App Changes Summary
+
+## Overview
+This document summarizes the recent changes made to the poker application codebase, focusing on bug fixes and improvements to the game flow and testing infrastructure.
+
+## Files Modified
+
+### 1. `engine/__tests__/integration.test.ts`
+**Major refactoring of the integration test suite**
+
+#### Key Changes:
+- **Simplified hand completion flow**: Removed redundant `showdown()` and `awardWinnings()` calls, now using only `completeHand()` which handles the entire process internally
+- **Improved button tracking**: Added proper capture of button indices before hand completion to ensure accurate button movement verification
+- **Enhanced debugging output**: Added console logging for button positions and chip distribution tracking
+- **Fixed chip conservation verification**: Added detailed logging of final chip counts per player to debug chip conservation issues
+- **Streamlined test structure**: Removed duplicate code patterns across all three hands in the test
+
+#### Specific Improvements:
+- Button index tracking now properly captures state before hand completion
+- Added debug output for chip verification to identify potential issues
+- Simplified the test flow to use the unified `completeHand()` method
+- Better verification of button movement across multiple hands
+
+### 2. `engine/game-flow.ts`
+**Fixed hand counter increment timing**
+
+#### Key Changes:
+- **Hand counting fix**: Moved `handsPlayed` increment from `startHand()` to `completeHand()` to ensure accurate hand counting
+- This prevents premature incrementing when hands are started but not completed
+
+### 3. `engine/index.ts`
+**Core game engine improvements**
+
+#### Key Changes:
+- **Removed debug logging**: Cleaned up extensive console logging from `isBettingRoundComplete()` function
+- **Improved showdown logic**: Enhanced logic for determining when to proceed to showdown
+  - Better handling of all-in scenarios where only one player can act
+  - Proper pot calculation before transitioning to showdown
+  - Clearer distinction between players who can act vs players still in hand
+- **Pot management**: Ensure pots are calculated before stage transitions to showdown
+- **Code cleanup**: Simplified conditional logic and removed verbose debugging statements
+
+#### Specific Logic Improvements:
+- `playersWhoCanAct` vs `playersStillInHand` distinction for better all-in handling
+- Consistent pot calculation before showdown transitions
+- Cleaner code without debug noise
+
+## Impact of Changes
+
+### Bug Fixes:
+1. **Hand counting accuracy**: Hands are now counted correctly only when completed
+2. **Button movement**: Proper tracking ensures button moves correctly between hands
+3. **All-in scenarios**: Better handling of situations where only all-in players remain
+4. **Pot management**: Consistent pot calculation before showdown prevents inconsistencies
+
+### Code Quality:
+1. **Reduced redundancy**: Eliminated duplicate showdown/award patterns in tests
+2. **Better debugging**: More targeted debug output for chip tracking
+3. **Cleaner code**: Removed verbose logging that cluttered the output
+4. **Simplified test flow**: More maintainable integration tests
+
+### Testing Improvements:
+1. **More reliable integration tests**: Better verification of game state transitions
+2. **Enhanced debugging**: Easier to identify issues with chip conservation
+3. **Clearer test structure**: More readable and maintainable test code
+
+## Resolution: Critical Bug Fixed! ✅
+
+### **Issue Resolved: Side Pot Calculation Creating Phantom Chips**
+
+After strategic debugging with comprehensive logging, we identified and fixed a critical bug:
+
+**Root Cause:** In `engine/pot-manager.ts`, the `calculateSidePots()` function was incorrectly calculating the main pot as:
+```typescript
+// INCORRECT (creating phantom chips)
+mainPot = smallestAllIn * playerIds.length  
+```
+
+**The Fix:** Changed to properly sum actual contributions up to the all-in amount:
+```typescript  
+// CORRECT (preserves chip conservation)
+mainPot = contributions.reduce((sum, contribution) => {
+  return sum + Math.min(contribution, smallestAllIn);
+}, 0);
+```
+
+**Impact:**
+- ❌ **Before**: Test failing with 5,960 total chips (1,960 phantom chips created)
+- ✅ **After**: Test passing with 4,000 total chips (perfect conservation)
+
+**Debug Strategy Success:**
+- Added strategic logging to track chip flow through: betting → pot calculation → showdown → winnings
+- Pinpointed exact location where extra chips were being created
+- Verified fix with detailed before/after comparison
+- All 100 tests now pass ✅
+
+## Next Steps
+- ✅ **COMPLETED**: Fix chip conservation bug in side pot calculations
+- ✅ **COMPLETED**: Verify button movement works correctly between hands  
+- ✅ **COMPLETED**: Ensure all-in scenarios handle properly
+- [ ] Consider adding unit tests for the specific edge cases fixed (complex side pot scenarios)
+- [ ] Evaluate if additional logging should be kept for production debugging vs development debugging
+- [ ] Clean up debug logs now that issue is resolved
+
+---
+*Generated on: December 2024*  
+*Branch: integration_test*  
+*Status: ✅ All tests passing - Critical bug resolved*

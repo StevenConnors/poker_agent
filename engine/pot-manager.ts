@@ -46,7 +46,10 @@ export function calculateSidePots(
   // Calculate main pot based on smallest all-in amount
   if (uniqueAllInValues.length > 0) {
     const smallestAllIn = uniqueAllInValues[0];
-    mainPot = smallestAllIn * playerIds.length;
+    // Only count contributions up to the smallest all-in amount for each player
+    mainPot = contributions.reduce((sum, contribution) => {
+      return sum + Math.min(contribution, smallestAllIn);
+    }, 0);
     currentLevel = smallestAllIn;
   }
 

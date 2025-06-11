@@ -465,17 +465,11 @@ describe('Multi-Hand Poker Integration', () => {
         }
       }
       
+      // Capture button index before completing hand
+      const hand1ButtonIndex = gameState.table.buttonIndex;
+
       // Complete hand
       if (gameState.stage === 'showdown') {
-        const showdownResult = GameManager.showdown(gameId);
-        expect(showdownResult.ok).toBe(true);
-        
-        const awardResult = GameManager.awardWinnings(gameId);
-        expect(awardResult.ok).toBe(true);
-        if (awardResult.ok && 'gameState' in awardResult.value) {
-          gameState = awardResult.value.gameState;
-        }
-        
         const completeResult = GameManager.completeHand(gameId);
         expect(completeResult.ok).toBe(true);
         if (completeResult.ok) {
@@ -489,8 +483,12 @@ describe('Multi-Hand Poker Integration', () => {
       // **HAND 2: Betting and raising**
       console.log('\n--- HAND 2: Betting and Raising ---');
       
-      const hand1ButtonIndex = gameState.table.buttonIndex;
+      console.log(`Hand 1 button index (before completion): ${hand1ButtonIndex}`);
+      console.log(`Hand 1 button index (after completion): ${gameState.table.buttonIndex}`);
+      
       startHand('hand2-seed');
+      
+      console.log(`Hand 2 button index: ${gameState.table.buttonIndex}`);
       
       // Verify button moved
       expect(gameState.table.buttonIndex).not.toBe(hand1ButtonIndex);
@@ -548,17 +546,11 @@ describe('Multi-Hand Poker Integration', () => {
         }
       }
       
+      // Capture button index before completing hand 2
+      const hand2ButtonIndex = gameState.table.buttonIndex;
+
       // Complete hand 2
       if (gameState.stage === 'showdown') {
-        const showdownResult = GameManager.showdown(gameId);
-        expect(showdownResult.ok).toBe(true);
-        
-        const awardResult = GameManager.awardWinnings(gameId);
-        expect(awardResult.ok).toBe(true);
-        if (awardResult.ok && 'gameState' in awardResult.value) {
-          gameState = awardResult.value.gameState;
-        }
-        
         const completeResult = GameManager.completeHand(gameId);
         expect(completeResult.ok).toBe(true);
         if (completeResult.ok) {
@@ -572,7 +564,6 @@ describe('Multi-Hand Poker Integration', () => {
       // **HAND 3: All-in scenario**
       console.log('\n--- HAND 3: All-in Scenario ---');
       
-      const hand2ButtonIndex = gameState.table.buttonIndex;
       startHand('hand3-seed');
       
       // Verify button moved again
@@ -627,17 +618,11 @@ describe('Multi-Hand Poker Integration', () => {
         }
       }
       
+      // Capture initial button index for final verification
+      const initialButtonIndex = 0;
+
       // Complete hand 3
       if (gameState.stage === 'showdown') {
-        const showdownResult = GameManager.showdown(gameId);
-        expect(showdownResult.ok).toBe(true);
-        
-        const awardResult = GameManager.awardWinnings(gameId);
-        expect(awardResult.ok).toBe(true);
-        if (awardResult.ok && 'gameState' in awardResult.value) {
-          gameState = awardResult.value.gameState;
-        }
-        
         const completeResult = GameManager.completeHand(gameId);
         expect(completeResult.ok).toBe(true);
         if (completeResult.ok) {
@@ -651,8 +636,8 @@ describe('Multi-Hand Poker Integration', () => {
       // **FINAL VERIFICATIONS**
       console.log('\n--- Final Verifications ---');
       
-      // Verify button movement
-      expect(gameState.table.buttonIndex).not.toBe(0);
+      // Verify button movement from initial position
+      expect(gameState.table.buttonIndex).not.toBe(initialButtonIndex);
       console.log(`Final button position: ${gameState.table.buttonIndex}`);
       
       // Verify all players still exist
@@ -665,6 +650,11 @@ describe('Multi-Hand Poker Integration', () => {
       });
       
       const totalChips = finalPlayers.reduce((sum, seat) => sum + (seat.player?.stack || 0), 0);
+      console.log(`🔍 DEBUG: Expected total chips: ${PLAYER_COUNT * STARTING_STACK}, Actual total chips: ${totalChips}`);
+      finalPlayers.forEach(seat => {
+        console.log(`  ${seat.player!.name}: ${seat.player!.stack} chips`);
+      });
+      
       expect(totalChips).toBeLessThanOrEqual(PLAYER_COUNT * STARTING_STACK);
       
       console.log('🎉 THREE-HAND INTEGRATION TEST PASSED! 🎉');
