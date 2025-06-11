@@ -10,7 +10,7 @@ import {
   completeHand
 } from '../index';
 import { startHand, validateHandStart } from '../game-flow';
-import { joinGame, initializeSeats } from '../player-manager';
+import { joinGame, initializeSeats, getActivePlayers } from '../player-manager';
 import { GameState, Table, Action, JoinGameConfig, ActionType, PokerError } from '../types';
 
 // Helper function to create a basic game state
@@ -526,12 +526,14 @@ describe('Betting System', () => {
       let action = createAction('call', currentPlayer.id, currentPlayer.seatIndex!, 1);
       let result = applyAction(gameState, action);
       expect(result.ok).toBe(true);
+      if (!result.ok) return;
       gameState = result.value;
       
       currentPlayer = getCurrentPlayer(gameState)!;
       action = createAction('check', currentPlayer.id, currentPlayer.seatIndex!);
       result = applyAction(gameState, action);
       expect(result.ok).toBe(true);
+      if (!result.ok) return;
       gameState = result.value;
       
       // Should advance through stages to showdown
@@ -570,12 +572,14 @@ describe('Betting System', () => {
       let action = createAction('fold', currentPlayer.id, currentPlayer.seatIndex!);
       let result = applyAction(gameState, action);
       expect(result.ok).toBe(true);
+      if (!result.ok) return;
       gameState = result.value;
       
       currentPlayer = getCurrentPlayer(gameState)!;
       action = createAction('fold', currentPlayer.id, currentPlayer.seatIndex!);
       result = applyAction(gameState, action);
       expect(result.ok).toBe(true);
+      if (!result.ok) return;
       gameState = result.value;
       
       // Should be in showdown now
@@ -624,6 +628,7 @@ describe('Betting System', () => {
       expect(currentPlayer.seatIndex).toBe(0); // Should be button (first to act after big blind)
       let result = applyAction(gameState, createAction('call', currentPlayer.id, 0, 2));
       expect(result.ok).toBe(true);
+      if (!result.ok) return;
       if (result.ok) gameState = result.value;
       
       // Player 2 (small blind) calls additional $1 to match big blind
@@ -631,6 +636,7 @@ describe('Betting System', () => {
       expect(currentPlayer.seatIndex).toBe(1); // Small blind
       result = applyAction(gameState, createAction('call', currentPlayer.id, 1, 1));
       expect(result.ok).toBe(true);
+      if (!result.ok) return;
       if (result.ok) gameState = result.value;
       
       // Player 3 (big blind) checks (no additional bet needed)
@@ -638,6 +644,7 @@ describe('Betting System', () => {
       expect(currentPlayer.seatIndex).toBe(2); // Big blind
       result = applyAction(gameState, createAction('check', currentPlayer.id, 2));
       expect(result.ok).toBe(true);
+      if (!result.ok) return;
       if (result.ok) gameState = result.value;
       
       // After complete preflop betting, should advance to flop
@@ -671,6 +678,122 @@ describe('Betting System', () => {
         // But betsThisRound should show the call
         expect(result.value.bettingRound.betsThisRound[currentPlayer.seatIndex!]).toBe(toCall);
       }
+    });
+  });
+
+  describe('All-In Game Flow', () => {
+    test('should continue to turn and river when all players go all-in at flop', () => {
+      // Setup: Create game with 3 players
+      let gameState = createTestGameState();
+      gameState = addPlayersToGame(gameState, 3);
+      gameState = startHand(gameState, 'test-seed-all-in-flop');
+      
+      // Force to flop stage and set all players to have small stacks for all-in scenario
+      gameState.stage = 'flop';
+      gameState.isHandActive = true; // This is crucial for legal actions to work
+      gameState.board = [
+        { suit: 'h', rank: 'A' },
+        { suit: 's', rank: 'K' },
+        { suit: 'c', rank: 'Q' }
+      ];
+      
+      // Set up betting round for flop
+      gameState.bettingRound = {
+        stage: 'flop',
+        currentBet: 0,
+        lastRaiseAmount: 0,
+        lastRaiserIndex: -1,
+        actionIndex: 0,
+        betsThisRound: Array(gameState.table.seats.length).fill(0),
+        playersActed: Array(gameState.table.seats.length).fill(false),
+        isComplete: false
+      };
+      
+      // Modify player stacks for all-in scenario
+      gameState.table.seats[0].player!.stack = 50; // Player 1: 50 chips
+      gameState.table.seats[1].player!.stack = 75; // Player 2: 75 chips (will have 25 left after first all-in)
+      gameState.table.seats[2].player!.stack = 100; // Player 3: 100 chips (will have 50 left after first all-in)
+      
+      // === FLOP BETTING: All players go all-in ===
+      
+      // Player 1 goes all-in (50 chips)
+      let action = createAction('all-in', 'player1', 0, 50);
+      let result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      gameState = result.value;
+      
+      expect(gameState.table.seats[0].player!.stack).toBe(0);
+      expect(gameState.table.seats[0].player!.status).toBe('all-in');
+      
+      // Player 2 calls all-in (50 chips)
+      action = createAction('call', 'player2', 1, 50);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      gameState = result.value;
+      
+      expect(gameState.table.seats[1].player!.stack).toBe(25); // 75 - 50
+      expect(gameState.stage).toBe('flop'); // Should still be at flop
+      
+      // Player 3 calls all-in (50 chips)  
+      action = createAction('call', 'player3', 2, 50);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      gameState = result.value;
+      
+      expect(gameState.table.seats[2].player!.stack).toBe(50); // 100 - 50
+      
+      // After flop betting completes, should advance to turn
+      expect(gameState.stage).toBe('turn');
+      expect(gameState.board.length).toBe(4); // Flop (3) + Turn (1)
+      
+      // === TURN BETTING: Remaining players go all-in ===
+      
+      // Player 2 checks (since betting starts fresh on turn)
+      let currentPlayer = getCurrentPlayer(gameState)!;
+      action = createAction('check', currentPlayer.id, currentPlayer.seatIndex!);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      gameState = result.value;
+      
+      // Player 3 goes all-in with remaining chips
+      action = createAction('all-in', 'player3', 2, 50);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      gameState = result.value;
+      
+      expect(gameState.table.seats[2].player!.status).toBe('all-in');
+      expect(gameState.table.seats[2].player!.stack).toBe(0);
+      
+      // Player 2 calls the all-in with remaining chips
+      const toCallAmount = gameState.bettingRound.betsThisRound[2] - gameState.bettingRound.betsThisRound[1];
+      action = createAction('call', 'player2', 1, toCallAmount);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      gameState = result.value;
+      
+      expect(gameState.table.seats[1].player!.status).toBe('all-in');
+      expect(gameState.table.seats[1].player!.stack).toBe(0);
+      
+      // === FINAL VERIFICATION ===
+      
+      // Now ALL players are all-in, game should have advanced through river to showdown
+      expect(['river', 'showdown']).toContain(gameState.stage);
+      expect(gameState.board.length).toBe(5); // Flop (3) + Turn (1) + River (1)
+      
+      // Verify all players are all-in
+      expect(gameState.table.seats[0].player!.status).toBe('all-in');
+      expect(gameState.table.seats[1].player!.status).toBe('all-in');
+      expect(gameState.table.seats[2].player!.status).toBe('all-in');
+      
+      // Game should have dealt all 5 community cards and be at showdown or ready for showdown
+      expect(gameState.board.length).toBe(5);
+      expect(['river', 'showdown']).toContain(gameState.stage);
     });
   });
 }); 

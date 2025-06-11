@@ -200,7 +200,7 @@ export function startHand(gameState: GameState, seed?: string): GameState {
     board: [],
     deck: deck.slice(cardsDealt), // Remaining cards after dealing hole cards
     history: [],
-    handsPlayed: gameState.handsPlayed + 1,
+    handsPlayed: gameState.handsPlayed, // Don't increment here - increment in completeHand instead
     isHandActive: true,
     bettingRound: {
       ...stateWithBlinds.bettingRound,
