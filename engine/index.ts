@@ -123,25 +123,48 @@ function isBettingRoundComplete(gs: GameState): boolean {
   const bets = gs.bettingRound.betsThisRound;
   const maxB = maxBet(bets);
   
-  // Get all seated players (not just active ones) - we need to check if all players who started the round have acted
-  const seatedPlayers = getSeatedPlayers(gs);
+  // Get only players who are actually in the current betting round
+  // This includes players who are active, all-in, or folded (but excludes players who are 'out' or disconnected)
+  const playersInRound = getSeatedPlayers(gs).filter(player => 
+    player.status === 'active' || player.status === 'all-in' || player.status === 'folded'
+  );
+  
+  console.log(`\n=== isBettingRoundComplete DEBUG ===`);
+  console.log(`Stage: ${gs.stage}`);
+  console.log(`Max bet: ${maxB}`);
+  console.log(`Bets: [${bets.join(', ')}]`);
+  console.log(`Players acted: [${gs.bettingRound.playersActed.join(', ')}]`);
+  console.log(`Players in round: ${playersInRound.length}`);
   
   // Need at least one player
-  if (seatedPlayers.length === 0) return true;
+  if (playersInRound.length === 0) {
+    console.log(`No players in round, returning true`);
+    return true;
+  }
   
-  // All seated players must have acted and either:
+  // All players in the round must have acted and either:
   // 1. Matched the max bet, or
   // 2. Are all-in, or
-  // 3. Have folded
-  return seatedPlayers.every(player => {
+  // 3. Have folded (folded players are automatically "complete" regardless of acted status)
+  const result = playersInRound.every(player => {
     const seatIndex = player.seatIndex!;
     const hasActed = gs.bettingRound.playersActed[seatIndex];
     const hasMatchedBet = bets[seatIndex] === maxB;
     const isAllIn = player.stack === 0;
     const hasFolded = player.status === 'folded';
     
-    return hasActed && (hasMatchedBet || isAllIn || hasFolded);
+    // Folded players are always considered complete (they don't need to act in future betting rounds)
+    const shouldComplete = hasFolded || (hasActed && (hasMatchedBet || isAllIn));
+    
+    console.log(`  Player ${player.name} (seat ${seatIndex}): acted=${hasActed}, bet=${bets[seatIndex]}, maxBet=${maxB}, matched=${hasMatchedBet}, allIn=${isAllIn}, folded=${hasFolded}, status=${player.status} -> ${shouldComplete}`);
+    
+    return shouldComplete;
   });
+  
+  console.log(`isBettingRoundComplete result: ${result}`);
+  console.log(`=== END DEBUG ===\n`);
+  
+  return result;
 }
 
 function advanceBettingRound(gs: GameState): GameState {

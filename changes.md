@@ -241,3 +241,7 @@ This design enables:
 - Easy testing of individual components
 
 The HTTP API serves as the contract between clients and game engine, ensuring consistency and enabling future extensibility. 
+
+
+## Bugs I found 
+- If a new player joins halfway through a hand, (eg during preflop), we never made it to the flop even tho both players are checking. but, it does correctly show the new player as "waiting".
