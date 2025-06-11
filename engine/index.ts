@@ -32,12 +32,26 @@ function calculatePots(gs: GameState): PotManager {
   const bets = gs.bettingRound.betsThisRound;
   const totalBet = bets.reduce((sum, bet) => sum + bet, 0);
   
-  // For now, simple implementation - all money goes to main pot
-  // TODO: Implement side pot logic for all-in scenarios
+  // Simple case: if no all-ins, add everything to existing pot
+  const hasAllIns = getSeatedPlayers(gs).some(player => player.status === 'all-in');
+  
+  if (!hasAllIns) {
+    return {
+      mainPot: gs.potManager.mainPot + totalBet,
+      sidePots: gs.potManager.sidePots,
+      totalPot: gs.potManager.totalPot + totalBet
+    };
+  }
+  
+  // Calculate side pots from current betting round
+  const { calculateSidePotsFromGameState } = require('./pot-manager');
+  const currentRoundPots = calculateSidePotsFromGameState(gs);
+  
+  // Combine with existing pot structure
   return {
-    mainPot: gs.potManager.mainPot + totalBet,
-    sidePots: [],
-    totalPot: gs.potManager.mainPot + totalBet
+    mainPot: gs.potManager.mainPot + currentRoundPots.mainPot,
+    sidePots: [...gs.potManager.sidePots, ...currentRoundPots.sidePots],
+    totalPot: gs.potManager.totalPot + currentRoundPots.totalPot
   };
 }
 
@@ -407,7 +421,35 @@ export function showdown(gs: GameState): Result<ShowdownResult[], PokerError> {
     return { player, hand };
   });
   
-  // Sort by hand strength (best first)
+  // If there are side pots, use the new distribution logic
+  if (gs.potManager.sidePots.length > 0) {
+    const { distributePots } = require('./pot-manager');
+    
+    // Convert hand evaluations to the format expected by distributePots
+    const handEvaluationsForPots = handEvaluations.map(({ player, hand }) => ({
+      playerId: player.id,
+      rank: hand.rank,
+      value: hand.value
+    }));
+    
+    const potDistribution = distributePots(gs.potManager, handEvaluationsForPots);
+    
+    // Convert back to ShowdownResult format
+    const results: ShowdownResult[] = potDistribution.map(distribution => {
+      const evaluation = handEvaluations.find(e => e.player.id === distribution.playerId)!;
+      return {
+        playerId: distribution.playerId,
+        seatIndex: evaluation.player.seatIndex!,
+        hand: evaluation.hand,
+        amountWon: distribution.amountWon,
+        potType: distribution.potType
+      };
+    });
+    
+    return { ok: true, value: results };
+  }
+  
+  // Original logic for simple main pot only
   handEvaluations.sort((a, b) => compareHands(b.hand, a.hand));
   
   // Determine winners (handle ties)
