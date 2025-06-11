@@ -11,12 +11,7 @@ function maxBet(bets: number[]): number {
 
 function minRaise(gs: GameState): number {
   // NLHE: min raise is previous raise amount or big blind
-  const bb = gs.table.bigBlind;
-  const bets = gs.bettingRound.betsThisRound;
-  const raises = bets.filter(b => b > bb);
-  if (raises.length < 2) return bb;
-  const sorted = [...raises].sort((a, b) => b - a);
-  return sorted[0] - sorted[1];
+  return gs.bettingRound.lastRaiseAmount > 0 ? gs.bettingRound.lastRaiseAmount : gs.table.bigBlind;
 }
 
 function getCurrentPlayer(gs: GameState): Player | null {
@@ -104,16 +99,18 @@ export function legalActions(gs: GameState): Action[] {
 function isBettingRoundComplete(gs: GameState): boolean {
   const bets = gs.bettingRound.betsThisRound;
   const maxB = maxBet(bets);
-  const activePlayers = getActivePlayers(gs);
   
-  // Need at least one active player
-  if (activePlayers.length === 0) return true;
+  // Get all seated players (not just active ones) - we need to check if all players who started the round have acted
+  const seatedPlayers = getSeatedPlayers(gs);
   
-  // All active players must have acted and either:
+  // Need at least one player
+  if (seatedPlayers.length === 0) return true;
+  
+  // All seated players must have acted and either:
   // 1. Matched the max bet, or
   // 2. Are all-in, or
   // 3. Have folded
-  return activePlayers.every(player => {
+  return seatedPlayers.every(player => {
     const seatIndex = player.seatIndex!;
     const hasActed = gs.bettingRound.playersActed[seatIndex];
     const hasMatchedBet = bets[seatIndex] === maxB;
@@ -193,8 +190,10 @@ function advanceGameStage(gs: GameState): GameState {
   let newState = { ...gs, stage: nextStage };
   
   // Deal community cards if moving to flop, turn, or river
+  // Pass the OLD state so dealCommunityCards can check the current stage
   if (nextStage === 'flop' || nextStage === 'turn' || nextStage === 'river') {
-    newState = dealCommunityCards(newState);
+    newState = dealCommunityCards(gs);
+    newState.stage = nextStage; // Update stage after dealing cards
   }
   
   // Reset betting round for new stage
