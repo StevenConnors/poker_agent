@@ -159,8 +159,8 @@ function postBlinds(gameState: GameState): GameState {
     },
     potManager: {
       ...gameState.potManager,
-      mainPot: sbAmount + bbAmount,
-      totalPot: sbAmount + bbAmount
+      mainPot: 0,
+      totalPot: 0
     }
   };
 }

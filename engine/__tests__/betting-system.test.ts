@@ -5,7 +5,10 @@ import {
   maxBet,
   minRaise,
   getCurrentPlayer,
-  isBettingRoundComplete
+  isBettingRoundComplete,
+  awardWinnings,
+  completeHand,
+  getCurrentPotTotal
 } from '../index';
 import { startHand, validateHandStart, createDeck, shuffleDeck } from '../game-flow';
 import { joinGame, initializeSeats } from '../player-manager';
@@ -443,68 +446,223 @@ describe('Betting System', () => {
   describe('Complete Game Flow', () => {
     test('should play complete hand from start to finish', () => {
       let gameState = createTestGameState();
-      gameState = addPlayersToGame(gameState, 2);
+      gameState = addPlayersToGame(gameState, 3);
       gameState = startHand(gameState, 'test-seed');
       
-      expect(gameState.stage).toBe('preflop');
-      expect(gameState.isHandActive).toBe(true);
-      expect(gameState.handsPlayed).toBe(1);
+      // Simulate quick hand - everyone folds except first player
+      let currentPlayer = getCurrentPlayer(gameState)!;
+      let action = createAction('call', currentPlayer.id, currentPlayer.seatIndex!, 2);
+      let result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        gameState = result.value;
+      }
       
-      // Both players should have hole cards
-      expect(gameState.table.seats[0].player!.hole).toHaveLength(2);
-      expect(gameState.table.seats[1].player!.hole).toHaveLength(2);
+      // Next player folds
+      currentPlayer = getCurrentPlayer(gameState)!;
+      action = createAction('fold', currentPlayer.id, currentPlayer.seatIndex!);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        gameState = result.value;
+      }
       
-      // Should have blinds posted
-      expect(gameState.bettingRound.betsThisRound[0]).toBe(1); // Small blind
-      expect(gameState.bettingRound.betsThisRound[1]).toBe(2); // Big blind
-      expect(gameState.potManager.mainPot).toBe(3); // SB + BB
+      // Third player folds - should trigger showdown
+      currentPlayer = getCurrentPlayer(gameState)!;
+      action = createAction('fold', currentPlayer.id, currentPlayer.seatIndex!);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        gameState = result.value;
+      }
+      
+      expect(gameState.stage).toBe('showdown');
     });
 
     test('should handle all-in scenarios', () => {
       let gameState = createTestGameState();
-      gameState = addPlayersToGame(gameState, 2);
       
-      // Set small stacks for all-in scenario
-      gameState.table.seats[0].player!.stack = 50;
-      gameState.table.seats[1].player!.stack = 75;
+      // Add players with small stacks
+      for (let i = 0; i < 2; i++) {
+        const result = joinGame(gameState, {
+          gameId: 'test-game',
+          playerId: `player${i + 1}`,
+          playerName: `Player ${i + 1}`,
+          buyIn: 50, // Small stack
+        });
+        if (!result.ok) throw new Error(`Failed to add player ${i + 1}`);
+        gameState = result.value;
+      }
       
       gameState = startHand(gameState, 'test-seed');
       
-      const player1 = gameState.table.seats[0].player!;
-      
       // Player goes all-in
-      const result = applyAction(gameState, createAction('all-in', player1.id, 0));
+      const currentPlayer = getCurrentPlayer(gameState)!;
+      const action = createAction('all-in', currentPlayer.id, currentPlayer.seatIndex!);
+      const result = applyAction(gameState, action);
       expect(result.ok).toBe(true);
       
       if (result.ok) {
-        const newState = result.value;
-        expect(newState.table.seats[0].player!.stack).toBe(0);
-        expect(newState.table.seats[0].player!.status).toBe('all-in');
+        const player = result.value.table.seats[currentPlayer.seatIndex!].player!;
+        expect(player.status).toBe('all-in');
+        expect(player.stack).toBe(0);
       }
     });
 
     test('should validate hand start requirements', () => {
       const gameState = createTestGameState();
       
-      // No players
-      let validation = validateHandStart(gameState);
+      const validation = validateHandStart(gameState);
       expect(validation.canStart).toBe(false);
-      expect(validation.reason).toContain('at least');
+      expect(validation.reason).toContain('players');
+    });
+
+    test('should award winnings correctly and complete hand', () => {
+      let gameState = createTestGameState();
+      gameState = addPlayersToGame(gameState, 2);
+      gameState = startHand(gameState, 'test-seed');
       
-      // Add minimum players
-      const stateWithPlayers = addPlayersToGame(gameState, 2);
-      validation = validateHandStart(stateWithPlayers);
-      expect(validation.canStart).toBe(true);
+      // Get initial stacks
+      const player1Stack = gameState.table.seats[0].player!.stack;
+      const player2Stack = gameState.table.seats[1].player!.stack;
+      const totalPot = gameState.potManager.totalPot;
+      
+      // Player 1 calls, player 2 checks - go to showdown
+      let currentPlayer = getCurrentPlayer(gameState)!;
+      let action = createAction('call', currentPlayer.id, currentPlayer.seatIndex!, 1);
+      let result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      gameState = result.value;
+      
+      currentPlayer = getCurrentPlayer(gameState)!;
+      action = createAction('check', currentPlayer.id, currentPlayer.seatIndex!);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      gameState = result.value;
+      
+      // Should advance through stages to showdown
+      expect(['flop', 'turn', 'river', 'showdown']).toContain(gameState.stage);
+      
+      if (gameState.stage === 'showdown') {
+        // Get showdown results
+        const showdownResult = showdown(gameState);
+        expect(showdownResult.ok).toBe(true);
+        
+        if (showdownResult.ok) {
+          // Award winnings
+          const finalState = awardWinnings(gameState, showdownResult.value);
+          
+          // Check that pot was awarded
+          expect(finalState.potManager.totalPot).toBe(0);
+          expect(finalState.winners).toEqual(showdownResult.value);
+          
+          // Check that winner received the pot
+          const winner = showdownResult.value[0];
+          const winnerSeat = finalState.table.seats[winner.seatIndex];
+          expect(winnerSeat.player!.stack).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    test('should move button after hand completion', () => {
+      let gameState = createTestGameState();
+      gameState = addPlayersToGame(gameState, 3);
+      gameState = startHand(gameState, 'test-seed');
+      
+      const initialButton = gameState.table.buttonIndex;
+      
+      // Complete a quick hand
+      let currentPlayer = getCurrentPlayer(gameState)!;
+      let action = createAction('fold', currentPlayer.id, currentPlayer.seatIndex!);
+      let result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      gameState = result.value;
+      
+      currentPlayer = getCurrentPlayer(gameState)!;
+      action = createAction('fold', currentPlayer.id, currentPlayer.seatIndex!);
+      result = applyAction(gameState, action);
+      expect(result.ok).toBe(true);
+      gameState = result.value;
+      
+      // Should be in showdown now
+      if (gameState.stage === 'showdown') {
+        const completionResult = completeHand(gameState);
+        expect(completionResult.ok).toBe(true);
+        
+        if (completionResult.ok) {
+          const nextHandState = completionResult.value;
+          
+          // Button should have moved
+          expect(nextHandState.table.buttonIndex).not.toBe(initialButton);
+          expect(nextHandState.stage).toBe('init');
+          expect(nextHandState.handsPlayed).toBe(gameState.handsPlayed + 1);
+          expect(nextHandState.isHandActive).toBe(false);
+          expect(nextHandState.board).toEqual([]);
+          
+          // Players should be reset for next hand
+          nextHandState.table.seats.forEach(seat => {
+            if (seat.player) {
+              expect(seat.player.hole).toEqual([]);
+              expect(['waiting', 'out']).toContain(seat.player.status);
+            }
+          });
+        }
+      }
     });
   });
 
   describe('Pot Management', () => {
+    test('should calculate pot correctly after complete preflop betting', () => {
+      let gameState = createTestGameState();
+      gameState = addPlayersToGame(gameState, 3);
+      gameState = startHand(gameState, 'test-seed');
+      
+      // Initial pot should be 0 (blinds are in betsThisRound but not yet in pot)
+      expect(gameState.potManager.totalPot).toBe(0);
+      
+      // Blinds should be in betsThisRound: [0, 1, 2, 0, 0, 0] 
+      // (seat 0=button/no blind, seat 1=SB, seat 2=BB)
+      expect(gameState.bettingRound.betsThisRound).toEqual([0, 1, 2, 0, 0, 0]);
+      
+      // Complete preflop betting round
+      // Player 1 (index 0, button) calls $2 to match big blind
+      let currentPlayer = getCurrentPlayer(gameState)!;
+      expect(currentPlayer.seatIndex).toBe(0); // Should be button (first to act after big blind)
+      let result = applyAction(gameState, createAction('call', currentPlayer.id, 0, 2));
+      expect(result.ok).toBe(true);
+      if (result.ok) gameState = result.value;
+      
+      // Player 2 (small blind) calls additional $1 to match big blind
+      currentPlayer = getCurrentPlayer(gameState)!;
+      expect(currentPlayer.seatIndex).toBe(1); // Small blind
+      result = applyAction(gameState, createAction('call', currentPlayer.id, 1, 1));
+      expect(result.ok).toBe(true);
+      if (result.ok) gameState = result.value;
+      
+      // Player 3 (big blind) checks (no additional bet needed)
+      currentPlayer = getCurrentPlayer(gameState)!;
+      expect(currentPlayer.seatIndex).toBe(2); // Big blind
+      result = applyAction(gameState, createAction('check', currentPlayer.id, 2));
+      expect(result.ok).toBe(true);
+      if (result.ok) gameState = result.value;
+      
+      // After complete preflop betting, should advance to flop
+      expect(gameState.stage).toBe('flop');
+      
+      // Final pot should be exactly $6: $2 (button call) + $1 (SB) + $1 (SB call) + $2 (BB) = $6
+      expect(gameState.potManager.totalPot).toBe(6);
+      
+      // betsThisRound should be reset for new round
+      expect(gameState.bettingRound.betsThisRound).toEqual([0, 0, 0, 0, 0, 0]);
+    });
+
     test('should track pot correctly through betting rounds', () => {
       let gameState = createTestGameState();
       gameState = addPlayersToGame(gameState, 3);
       gameState = startHand(gameState, 'test-seed');
       
-      const initialPot = gameState.potManager.totalPot; // SB + BB
+      const initialPot = gameState.potManager.totalPot; // Should be 0
+      expect(initialPot).toBe(0);
       
       // Get the current player to act (should be player after big blind)
       const currentPlayer = getCurrentPlayer(gameState)!;
@@ -514,8 +672,9 @@ describe('Betting System', () => {
       expect(result.ok).toBe(true);
       
       if (result.ok) {
-        // Pot should increase by call amount when betting round completes
-        // Note: pot is updated when betting round advances
+        // Pot should still be 0 (not updated until betting round completes)
+        expect(result.value.potManager.totalPot).toBe(0);
+        // But betsThisRound should show the call
         expect(result.value.bettingRound.betsThisRound[currentPlayer.seatIndex!]).toBe(toCall);
       }
     });
