@@ -1,4 +1,4 @@
-import { Agent, GameState, Action } from '../types';
+import { Agent, GameState, Action } from '../engine/types';
 
 export const sampleBot: Agent = {
   async decide(gs: Readonly<GameState>, legal: Readonly<Action[]>): Promise<Action> {

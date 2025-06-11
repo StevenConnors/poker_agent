@@ -212,6 +212,28 @@ export function getNextActivePlayerIndex(gameState: GameState, currentIndex: num
 }
 
 /**
+ * Get next available player index (includes waiting players - used for determining blind positions)
+ */
+export function getNextAvailablePlayerIndex(gameState: GameState, currentIndex: number): number | null {
+  const {seats} = gameState.table;
+  let nextIndex = (currentIndex + 1) % seats.length;
+  let attempts = 0;
+
+  while (attempts < seats.length) {
+    const seat = seats[nextIndex];
+    if (!seat.isEmpty && seat.player && 
+        seat.player.status !== 'out' && 
+        seat.player.isConnected) {
+      return nextIndex;
+    }
+    nextIndex = (nextIndex + 1) % seats.length;
+    attempts++;
+  }
+
+  return null; // No available players found
+}
+
+/**
  * Get the button (dealer) position
  */
 export function getButtonPosition(gameState: GameState): number | null {
@@ -262,19 +284,27 @@ export function getBlindPositions(gameState: GameState): { smallBlind: number | 
     return { smallBlind: null, bigBlind: null };
   }
 
-  const {buttonIndex} = gameState.table;
+  let {buttonIndex} = gameState.table;
+  
+  // Ensure button is on a valid player seat
+  const buttonSeat = gameState.table.seats[buttonIndex];
+  if (!buttonSeat || buttonSeat.isEmpty || !buttonSeat.player || 
+      buttonSeat.player.status === 'out' || !buttonSeat.player.isConnected) {
+    // Find first available player to position button
+    buttonIndex = getNextAvailablePlayerIndex(gameState, buttonIndex - 1) || 0;
+  }
 
   if (activePlayers.length === 2) {
     // Heads-up: button is small blind
     return {
       smallBlind: buttonIndex,
-      bigBlind: getNextActivePlayerIndex(gameState, buttonIndex)
+      bigBlind: getNextAvailablePlayerIndex(gameState, buttonIndex)
     };
   } 
     // Multi-way: small blind is next to button, big blind is after small blind
-    const smallBlindIndex = getNextActivePlayerIndex(gameState, buttonIndex);
+    const smallBlindIndex = getNextAvailablePlayerIndex(gameState, buttonIndex);
     const bigBlindIndex = smallBlindIndex !== null ? 
-      getNextActivePlayerIndex(gameState, smallBlindIndex) : null;
+      getNextAvailablePlayerIndex(gameState, smallBlindIndex) : null;
     
     return {
       smallBlind: smallBlindIndex,

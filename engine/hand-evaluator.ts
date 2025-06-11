@@ -1,4 +1,4 @@
-import { Card, Rank, Suit, HandRank, HandEvaluation } from './types.js';
+import { Card, Rank, Suit, HandRank, HandEvaluation } from './types';
 
 // Card rank values for comparison (Ace high)
 const RANK_VALUES = new Map<Rank, number>([

@@ -1,53 +1,8 @@
 import { GameState, NewGameConfig, Action, PokerError, Result, ShowdownResult, Card, Rank, Suit, Player, Table, PotManager, ActionType } from './types';
+import { createDeck, shuffleDeck } from './game-flow';
+import { getActivePlayers, getNextActivePlayerIndex, findPlayerById } from './player-manager';
 
-// --- Deck implementation ---
-const SUITS: Suit[] = ['c', 'd', 'h', 's'];
-const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
-
-function createDeck(): Card[] {
-  const deck: Card[] = [];
-  for (const suit of SUITS) {
-    for (const rank of RANKS) {
-      deck.push({ rank, suit });
-    }
-  }
-  return deck;
-}
-
-function shuffle<T>(array: T[], seed?: string): T[] {
-  // Fisher-Yates shuffle, optionally seeded
-  const arr = array.slice();
-  let m = arr.length; let i;
-  const random = seed ? seededRandom(seed) : Math.random;
-  while (m) {
-    i = Math.floor(random() * m--);
-    [arr[m], arr[i]] = [arr[i], arr[m]];
-  }
-  return arr;
-}
-
-function seededRandom(seed: string): () => number {
-  // Simple LCG for deterministic shuffling
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
-  }
-  return function() {
-    h += 0x6D2B79F5;
-    let t = Math.imul(h ^ h >>> 15, 1 | h);
-    t ^= t + Math.imul(t ^ t >>> 7, 61 | t);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
-
-function getActivePlayers(gs: GameState): number[] {
-  return gs.table.seats.map((p, i) => (p.status === 'active' || p.status === 'all-in' ? i : -1)).filter(i => i !== -1);
-}
-
-function currentPlayer(gs: GameState): Player {
-  return gs.table.seats[gs.currentIndex];
-}
+// --- Remove duplicate functions, use imports instead ---
 
 function maxBet(bets: number[]): number {
   return Math.max(...bets);
@@ -56,158 +11,243 @@ function maxBet(bets: number[]): number {
 function minRaise(gs: GameState): number {
   // NLHE: min raise is previous raise or big blind
   const bb = gs.table.bigBlind;
-  const bets = gs.betsThisRound;
+  const bets = gs.bettingRound.betsThisRound;
   const raises = bets.filter(b => b > bb);
   if (raises.length < 2) return bb;
   const sorted = [...raises].sort((a, b) => b - a);
   return sorted[0] - sorted[1];
-} 
+}
+
+function getCurrentPlayer(gs: GameState): Player | null {
+  const seat = gs.table.seats[gs.bettingRound.actionIndex];
+  return seat?.player || null;
+}
 
 export function newGame(cfg: NewGameConfig): GameState {
-  const deck = shuffle(createDeck(), cfg.buttonIndex?.toString() || undefined);
-  const players: Player[] = cfg.players.map((p, i) => ({
-    ...p,
-    status: 'active',
-    hole: [deck[i * 2], deck[i * 2 + 1]],
-  }));
-  const table: Table = {
-    buttonIndex: cfg.buttonIndex ?? 0,
-    smallBlind: cfg.smallBlind ?? 1,
-    bigBlind: cfg.bigBlind ?? 2,
-    seats: players,
-  };
-  const potManager: PotManager = { pots: [{ amount: 0, eligibleIds: players.map(p => p.id) }] };
-  return {
-    stage: 'preflop',
-    board: [],
-    currentIndex: (cfg.buttonIndex ?? 0 + 1) % players.length, // SB acts first
-    betsThisRound: Array(players.length).fill(0),
-    history: [],
-    table,
-    potManager,
-  };
+  // This function creates an empty game - players join separately
+  // Remove old implementation that doesn't match the types
+  throw new Error('Use GameManager.createEmptyGame() instead - newGame function is deprecated');
 }
 
 export function legalActions(gs: GameState): Action[] {
-  const player = currentPlayer(gs);
-  if (player.status !== 'active') return [];
-  const bets = gs.betsThisRound;
+  const player = getCurrentPlayer(gs);
+  if (!player || player.status !== 'active') return [];
+  
+  const bets = gs.bettingRound.betsThisRound;
   const maxB = maxBet(bets);
-  const playerBet = bets[gs.currentIndex];
+  const playerBet = bets[gs.bettingRound.actionIndex];
   const toCall = maxB - playerBet;
-  const {stack} = player;
+  const { stack } = player;
   const actions: Action[] = [];
+  
+  const baseAction = {
+    playerId: player.id,
+    seatIndex: player.seatIndex || gs.bettingRound.actionIndex,
+    timestamp: Date.now()
+  };
+  
   if (toCall === 0) {
-    actions.push({ type: 'check' });
-    if (stack > 0) actions.push({ type: 'bet', amount: 1 });
+    actions.push({ ...baseAction, type: 'check' });
+    if (stack > 0) {
+      actions.push({ ...baseAction, type: 'bet', amount: gs.table.bigBlind });
+    }
   } else {
-    if (stack > toCall) actions.push({ type: 'call', amount: toCall });
-    if (stack === toCall) actions.push({ type: 'all-in', amount: toCall });
-    actions.push({ type: 'fold' });
-    if (stack > toCall) actions.push({ type: 'raise', amount: toCall + minRaise(gs) });
+    if (stack > toCall) {
+      actions.push({ ...baseAction, type: 'call', amount: toCall });
+    }
+    if (stack === toCall) {
+      actions.push({ ...baseAction, type: 'all-in', amount: toCall });
+    }
+    actions.push({ ...baseAction, type: 'fold' });
+    if (stack > toCall) {
+      const minRaiseAmount = toCall + minRaise(gs);
+      if (stack >= minRaiseAmount) {
+        actions.push({ ...baseAction, type: 'raise', amount: minRaiseAmount });
+      }
+    }
   }
   return actions;
 }
 
-function nextPlayerIndex(gs: GameState): number {
-  const n = gs.table.seats.length;
-  const idx = gs.currentIndex;
-  for (let i = 1; i < n; i++) {
-    const ni = (idx + i) % n;
-    const p = gs.table.seats[ni];
-    if (p.status === 'active') return ni;
-  }
-  return -1;
-}
-
 function isBettingRoundOver(gs: GameState): boolean {
-  const bets = gs.betsThisRound;
+  const bets = gs.bettingRound.betsThisRound;
   const maxB = maxBet(bets);
-  const active = getActivePlayers(gs);
+  const activePlayers = getActivePlayers(gs);
+  
   // Betting round is over if all active players have matched max bet or are all-in
-  return active.every(i => {
-    const p = gs.table.seats[i];
-    return p.status !== 'active' || bets[i] === maxB || p.stack === 0;
+  return activePlayers.every(player => {
+    const seatIndex = player.seatIndex || gs.table.seats.findIndex(s => s.player?.id === player.id);
+    if (seatIndex === -1) return true; // Player not found, consider as done
+    
+    return player.status !== 'active' || 
+           bets[seatIndex] === maxB || 
+           player.stack === 0;
   });
 }
 
-function advanceStage(gs: GameState, deck: Card[]): GameState {
+function advanceStage(gs: GameState): GameState {
   const nextStage: Record<string, string> = {
     preflop: 'flop',
     flop: 'turn',
     turn: 'river',
     river: 'showdown',
   };
+  
   let board = gs.board.slice();
-  if (gs.stage === 'preflop') board = deck.slice(-5, -2); // flop (3)
-  if (gs.stage === 'flop') board = [...board, deck[deck.length - 2]]; // turn (1)
-  if (gs.stage === 'turn') board = [...board, deck[deck.length - 1]]; // river (1)
+  const deck = gs.deck.slice(); // Use remaining deck
+  
+  if (gs.stage === 'preflop') {
+    // Deal flop (3 cards)
+    board = deck.slice(0, 3);
+  } else if (gs.stage === 'flop') {
+    // Deal turn (1 card)
+    board = [...board, deck[0]];
+  } else if (gs.stage === 'turn') {
+    // Deal river (1 card)  
+    board = [...board, deck[0]];
+  }
+  
+  // Find first active player after button for next betting round
+  const activePlayers = getActivePlayers(gs);
+  let firstActiveIndex = 0;
+  if (activePlayers.length > 0) {
+    // Get the seat index from the first active player
+    const firstPlayer = activePlayers[0];
+    firstActiveIndex = firstPlayer.seatIndex || gs.table.seats.findIndex(s => s.player?.id === firstPlayer.id);
+    if (firstActiveIndex === -1) firstActiveIndex = 0;
+  }
+  
   return {
     ...gs,
     stage: nextStage[gs.stage] as any,
     board,
-    betsThisRound: Array(gs.table.seats.length).fill(0),
-    currentIndex: nextPlayerIndex(gs),
+    deck: gs.stage === 'river' ? deck : deck.slice(1), // Remove dealt card(s)
+    bettingRound: {
+      ...gs.bettingRound,
+      stage: nextStage[gs.stage] as any,
+      currentBet: 0,
+      lastRaiseAmount: 0,
+      lastRaiserIndex: -1,
+      actionIndex: firstActiveIndex,
+      betsThisRound: Array(gs.table.seats.length).fill(0),
+      playersActed: Array(gs.table.seats.length).fill(false),
+      isComplete: false
+    }
   };
 }
 
 export function applyAction(gs: GameState, a: Action): Result<GameState, PokerError> {
-  const player = currentPlayer(gs);
-  if (player.status !== 'active') return { ok: false, error: PokerError.InvalidAction };
-  const bets = gs.betsThisRound.slice();
-  const seats = gs.table.seats.map(p => ({ ...p }));
-  const nextIdx = nextPlayerIndex(gs);
+  const playerInfo = findPlayerById(gs, a.playerId);
+  if (!playerInfo || playerInfo.player.status !== 'active') {
+    return { ok: false, error: PokerError.InvalidAction };
+  }
+  
+  if (playerInfo.seatIndex !== gs.bettingRound.actionIndex) {
+    return { ok: false, error: PokerError.NotPlayersTurn };
+  }
+  
+  const bets = gs.bettingRound.betsThisRound.slice();
+  const seats = gs.table.seats.map(seat => ({ 
+    ...seat, 
+    player: seat.player ? { ...seat.player } : null 
+  }));
+  
+  const seatIndex = playerInfo.seatIndex;
+  const player = seats[seatIndex].player!;
+  
   switch (a.type) {
     case 'fold':
-      seats[gs.currentIndex].status = 'folded';
+      player.status = 'folded';
       break;
+      
     case 'call':
     case 'all-in': {
-      const toCall = maxBet(bets) - bets[gs.currentIndex];
-      const callAmt = Math.min(toCall, seats[gs.currentIndex].stack);
-      bets[gs.currentIndex] += callAmt;
-      seats[gs.currentIndex].stack -= callAmt;
-      if (seats[gs.currentIndex].stack === 0) seats[gs.currentIndex].status = 'all-in';
+      const toCall = maxBet(bets) - bets[seatIndex];
+      const callAmt = Math.min(toCall, player.stack);
+      bets[seatIndex] += callAmt;
+      player.stack -= callAmt;
+      if (player.stack === 0) player.status = 'all-in';
       break;
     }
+    
     case 'check':
       // No stack/bet change
       break;
+      
     case 'bet':
     case 'raise': {
       const amt = a.amount ?? 0;
-      if (amt > seats[gs.currentIndex].stack) return { ok: false, error: PokerError.InsufficientStack };
-      bets[gs.currentIndex] += amt;
-      seats[gs.currentIndex].stack -= amt;
+      if (amt > player.stack) {
+        return { ok: false, error: PokerError.InsufficientStack };
+      }
+      bets[seatIndex] += amt;
+      player.stack -= amt;
+      if (player.stack === 0) player.status = 'all-in';
       break;
     }
+    
     default:
       return { ok: false, error: PokerError.InvalidAction };
   }
-  const newHistory = [...gs.history, { ...a, playerId: player.id }];
+  
+  // Mark player as having acted
+  const playersActed = gs.bettingRound.playersActed.slice();
+  playersActed[seatIndex] = true;
+  
+  const newHistory = [...gs.history, a];
+  
+  // Find next active player
+  const nextPlayerIndex = getNextActivePlayerIndex(gs, seatIndex);
+  
   let newGs: GameState = {
     ...gs,
     table: { ...gs.table, seats },
-    betsThisRound: bets,
-    history: newHistory,
-    currentIndex: nextIdx,
+    bettingRound: {
+      ...gs.bettingRound,
+      betsThisRound: bets,
+      playersActed,
+      actionIndex: nextPlayerIndex ?? seatIndex,
+      currentBet: Math.max(...bets),
+      lastRaiseAmount: a.type === 'raise' || a.type === 'bet' ? (a.amount ?? 0) : gs.bettingRound.lastRaiseAmount,
+      lastRaiserIndex: a.type === 'raise' || a.type === 'bet' ? seatIndex : gs.bettingRound.lastRaiserIndex
+    },
+    history: newHistory
   };
-  // Check for round advance
+  
+  // Check for betting round completion
   if (isBettingRoundOver(newGs)) {
-    // For simplicity, use a new deck for board cards (not tracking burn)
-    const deck = createDeck().filter(card => !seats.flatMap(p => p.hole).some(h => h.rank === card.rank && h.suit === card.suit));
-    newGs = advanceStage(newGs, deck);
+    newGs.bettingRound.isComplete = true;
+    
+    // Advance stage if not showdown
+    if (newGs.stage !== 'river') {
+      newGs = advanceStage(newGs);
+    } else {
+      newGs = { ...newGs, stage: 'showdown' };
+    }
   }
+  
   return { ok: true, value: newGs };
 }
 
-export function showdown(gs: GameState): Result<ShowdownResult, PokerError> {
-  // Stub: just split pot among active players
-  const active = getActivePlayers(gs);
-  const pot = gs.potManager.pots[0].amount;
-  const winners = active.map(i => ({ playerId: gs.table.seats[i].id, amount: pot / active.length }));
-  const hands = active.map(i => ({ playerId: gs.table.seats[i].id, hand: gs.table.seats[i].hole }));
-  return { ok: true, value: { winners, hands } };
+export function showdown(gs: GameState): Result<ShowdownResult[], PokerError> {
+  // Stub: just split main pot among active players
+  const activePlayers = getActivePlayers(gs).filter(p => p.status === 'active' || p.status === 'all-in');
+  const mainPot = gs.potManager.mainPot;
+  
+  const results: ShowdownResult[] = activePlayers.map(player => ({
+    playerId: player.id,
+    seatIndex: player.seatIndex || 0,
+    hand: {
+      rank: 'high-card' as const,
+      value: 0,
+      kickers: [],
+      cards: player.hole
+    },
+    amountWon: mainPot / activePlayers.length,
+    potType: 'main' as const
+  }));
+  
+  return { ok: true, value: results };
 }
 
 // Note: Player manager functions are imported directly in API files 

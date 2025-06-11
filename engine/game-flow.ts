@@ -1,5 +1,5 @@
-import { GameState, Card, Rank, Suit, Action } from './types.js';
-import { getBlindPositions, getSeatedPlayers } from './player-manager.js';
+import { GameState, Card, Rank, Suit, Action } from './types';
+import { getBlindPositions, getSeatedPlayers } from './player-manager';
 
 // Card deck creation and management
 const SUITS: Suit[] = ['c', 'd', 'h', 's'];

@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { GameState, Action, NewGameConfig, JoinGameConfig, Player } from '../engine/types.js';
+import { GameState, Action, NewGameConfig, JoinGameConfig, Player } from '../engine/types';
 
 interface ApiResponse<T> {
   ok: boolean;

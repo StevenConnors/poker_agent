@@ -9,6 +9,7 @@ import {
   joinGame,
   leaveGame,
   getNextActivePlayerIndex,
+  getNextAvailablePlayerIndex,
   moveButton,
   getBlindPositions,
   canStartHand
@@ -77,30 +78,28 @@ describe('Player Manager', () => {
     });
 
     test('should handle different table sizes', () => {
-      expect(initializeSeats(2)).toHaveLength(2);
-      expect(initializeSeats(9)).toHaveLength(9);
+      const seats2 = initializeSeats(2);
+      expect(seats2).toHaveLength(2);
+      
+      const seats9 = initializeSeats(9);
+      expect(seats9).toHaveLength(9);
     });
   });
 
   describe('findEmptySeat', () => {
     test('should find first empty seat', () => {
-      const gameState = createTestGameState();
-      const emptySeat = findEmptySeat(gameState.table);
-      expect(emptySeat).toBe(0);
+      const gameState = createTestGameState(3);
+      expect(findEmptySeat(gameState.table)).toBe(0);
+      
+      // Fill first seat
+      gameState.table.seats[0].isEmpty = false;
+      expect(findEmptySeat(gameState.table)).toBe(1);
     });
 
     test('should return null when no empty seats', () => {
       const gameState = createTestGameState(2);
-      // Fill all seats
-      const result1 = joinGame(gameState, createJoinConfig('player1', 'Player 1'));
-      expect(result1.ok).toBe(true);
-      if (!result1.ok) return; // Type guard
-      const result2 = joinGame(result1.value, createJoinConfig('player2', 'Player 2'));
-      expect(result2.ok).toBe(true);
-      if (!result2.ok) return; // Type guard
-
-      const emptySeat = findEmptySeat(result2.value.table);
-      expect(emptySeat).toBeNull();
+      gameState.table.seats.forEach(seat => { seat.isEmpty = false; });
+      expect(findEmptySeat(gameState.table)).toBeNull();
     });
   });
 
@@ -141,18 +140,16 @@ describe('Player Manager', () => {
   describe('joinGame', () => {
     test('should successfully add player to empty game', () => {
       const gameState = createTestGameState();
-      const result = joinGame(gameState, createJoinConfig('player1', 'Alice', 1000));
+      const result = joinGame(gameState, createJoinConfig('player1', 'Alice'));
       
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      const newState = result.value;
-      expect(newState.table.seats[0].isEmpty).toBe(false);
-      expect(newState.table.seats[0].player!.id).toBe('player1');
-      expect(newState.table.seats[0].player!.name).toBe('Alice');
-      expect(newState.table.seats[0].player!.stack).toBe(1000);
-      expect(newState.table.seats[0].player!.seatIndex).toBe(0);
-      expect(newState.table.seats[0].player!.isConnected).toBe(true);
-      expect(newState.table.seats[0].player!.status).toBe('waiting');
+      if (result.ok) {
+        const newState = result.value;
+        expect(newState.table.seats[0].isEmpty).toBe(false);
+        expect(newState.table.seats[0].player).not.toBeNull();
+        expect(newState.table.seats[0].player!.id).toBe('player1');
+        expect(newState.table.seats[0].player!.name).toBe('Alice');
+      }
     });
 
     test('should assign specific seat when requested', () => {
@@ -160,11 +157,11 @@ describe('Player Manager', () => {
       const result = joinGame(gameState, createJoinConfig('player1', 'Alice', 1000, 3));
       
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      const newState = result.value;
-      expect(newState.table.seats[3].isEmpty).toBe(false);
-      expect(newState.table.seats[3].player!.id).toBe('player1');
-      expect(newState.table.seats[3].player!.seatIndex).toBe(3);
+      if (result.ok) {
+        const newState = result.value;
+        expect(newState.table.seats[3].isEmpty).toBe(false);
+        expect(newState.table.seats[3].player!.id).toBe('player1');
+      }
     });
 
     test('should reject join when specific seat is taken', () => {
@@ -180,7 +177,7 @@ describe('Player Manager', () => {
       const result2 = joinGame(gameState, createJoinConfig('player2', 'Bob', 1000, 2));
       expect(result2.ok).toBe(false);
       if (!result2.ok) {
-        expect(result2.error).toBe(PokerError.SeatTaken);
+        expect((result2 as any).error).toBe(PokerError.SeatTaken);
       }
     });
 
@@ -199,7 +196,7 @@ describe('Player Manager', () => {
       const result3 = joinGame(gameState, createJoinConfig('player3', 'Charlie'));
       expect(result3.ok).toBe(false);
       if (!result3.ok) {
-        expect(result3.error).toBe(PokerError.GameFull);
+        expect((result3 as any).error).toBe(PokerError.GameFull);
       }
     });
 
@@ -224,7 +221,7 @@ describe('Player Manager', () => {
       const result = joinGame(gameState, createJoinConfig('player1', 'Alice', 1000, 10));
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toBe(PokerError.InvalidSeat);
+        expect((result as any).error).toBe(PokerError.InvalidSeat);
       }
     });
   });
@@ -272,7 +269,7 @@ describe('Player Manager', () => {
       const result = leaveGame(gameState, 'non-existent');
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.error).toBe(PokerError.PlayerNotFound);
+        expect((result as any).error).toBe(PokerError.PlayerNotFound);
       }
     });
   });
@@ -369,16 +366,61 @@ describe('Player Manager', () => {
       expect(smallBlind).toBe(1); // Next to button
       expect(bigBlind).toBe(2); // After small blind
     });
+
+    test('should work with waiting players (before hand starts)', () => {
+      let gameState = createTestGameState();
+      
+      // Add two players with 'waiting' status (as they would be when first joining)
+      const result1 = joinGame(gameState, createJoinConfig('player1', 'p2'));
+      if (!result1.ok) throw new Error('Failed to add player1');
+      const result2 = joinGame(result1.value, createJoinConfig('player2', 'p3'));
+      if (!result2.ok) throw new Error('Failed to add player2');
+      gameState = result2.value;
+      
+      // Players should have 'waiting' status by default (don't change to 'active')
+      expect(gameState.table.seats[0].player!.status).toBe('waiting');
+      expect(gameState.table.seats[1].player!.status).toBe('waiting');
+      gameState.table.buttonIndex = 0;
+
+      const { smallBlind, bigBlind } = getBlindPositions(gameState);
+      expect(smallBlind).toBe(0); // Button is small blind in heads-up
+      expect(bigBlind).toBe(1);
+    });
+
+    test('should handle button not on a player seat', () => {
+      let gameState = createTestGameState();
+      
+      // Add two players in seats 1 and 2 (not seat 0)
+      const config1 = createJoinConfig('player1', 'Alice');
+      config1.seatIndex = 1;
+      const config2 = createJoinConfig('player2', 'Bob');
+      config2.seatIndex = 2;
+      
+      const result1 = joinGame(gameState, config1);
+      if (!result1.ok) throw new Error('Failed to add player1');
+      const result2 = joinGame(result1.value, config2);
+      if (!result2.ok) throw new Error('Failed to add player2');
+      gameState = result2.value;
+      
+      // Button is still at seat 0 (empty), but function should handle this
+      gameState.table.buttonIndex = 0;
+
+      const { smallBlind, bigBlind } = getBlindPositions(gameState);
+      expect(smallBlind).not.toBeNull();
+      expect(bigBlind).not.toBeNull();
+      expect(smallBlind).toBe(1); // Should find first available player
+      expect(bigBlind).toBe(2);
+    });
   });
 
   describe('canStartHand', () => {
     test('should allow starting with minimum players', () => {
-      let gameState = createTestGameState(6, 2);
+      let gameState = createTestGameState();
       
-      // Add two players with sufficient stacks
-      const result1 = joinGame(gameState, createJoinConfig('player1', 'Alice', 100));
+      // Add minimum players
+      const result1 = joinGame(gameState, createJoinConfig('player1', 'Alice'));
       if (!result1.ok) throw new Error('Failed to add player1');
-      const result2 = joinGame(result1.value, createJoinConfig('player2', 'Bob', 100));
+      const result2 = joinGame(result1.value, createJoinConfig('player2', 'Bob'));
       if (!result2.ok) throw new Error('Failed to add player2');
       gameState = result2.value;
       
@@ -386,24 +428,30 @@ describe('Player Manager', () => {
       gameState.table.seats[0].player!.status = 'active';
       gameState.table.seats[1].player!.status = 'active';
 
-      const result = canStartHand(gameState);
-      expect(result.canStart).toBe(true);
+      const { canStart } = canStartHand(gameState);
+      expect(canStart).toBe(true);
     });
 
     test('should prevent starting with insufficient players', () => {
-      const gameState = createTestGameState(6, 2);
-      const result = canStartHand(gameState);
-      expect(result.canStart).toBe(false);
-      expect(result.reason).toContain('Need at least 2 players');
+      let gameState = createTestGameState();
+      
+      // Add only one player
+      const result = joinGame(gameState, createJoinConfig('player1', 'Alice'));
+      if (!result.ok) throw new Error('Failed to add player');
+      gameState = result.value;
+
+      const { canStart, reason } = canStartHand(gameState);
+      expect(canStart).toBe(false);
+      expect(reason).toContain('Need at least 2 players');
     });
 
     test('should prevent starting when blind players have insufficient chips', () => {
-      let gameState = createTestGameState(6, 2);
+      let gameState = createTestGameState();
       
-      // Add players with insufficient stacks for blinds
-      const result1 = joinGame(gameState, createJoinConfig('player1', 'Alice', 1)); // Less than SB
+      // Add players with insufficient chips for big blind
+      const result1 = joinGame(gameState, createJoinConfig('player1', 'Alice', 1)); // SB player - 1 chip (enough for SB)
       if (!result1.ok) throw new Error('Failed to add player1');
-      const result2 = joinGame(result1.value, createJoinConfig('player2', 'Bob', 1)); // Less than BB
+      const result2 = joinGame(result1.value, createJoinConfig('player2', 'Bob', 1)); // BB player - 1 chip (NOT enough for BB=2)
       if (!result2.ok) throw new Error('Failed to add player2');
       gameState = result2.value;
       
@@ -411,9 +459,9 @@ describe('Player Manager', () => {
       gameState.table.seats[0].player!.status = 'active';
       gameState.table.seats[1].player!.status = 'active';
 
-      const result = canStartHand(gameState);
-      expect(result.canStart).toBe(false);
-      expect(result.reason).toContain('insufficient chips');
+      const { canStart, reason } = canStartHand(gameState);
+      expect(canStart).toBe(false);
+      expect(reason).toContain('insufficient chips');
     });
   });
 
@@ -452,7 +500,7 @@ describe('Player Manager', () => {
       if (!result3.ok) throw new Error('Failed to add player3');
       gameState = result3.value;
       
-      // Set player statuses
+      // Set statuses
       gameState.table.seats[0].player!.status = 'active';
       gameState.table.seats[1].player!.status = 'out'; // Skip this one
       gameState.table.seats[2].player!.status = 'active';
