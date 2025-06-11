@@ -1,4 +1,4 @@
-import { Card, Rank, Suit, HandRank, HandEvaluation } from './types';
+import { Card, Rank, HandRank, HandEvaluation } from './types';
 
 // Card rank values for comparison (Ace high)
 const RANK_VALUES = new Map<Rank, number>([
@@ -212,7 +212,7 @@ function getStraightRanks(ranks: Rank[]): Rank[] | null {
     }
     if (consecutive) {
       return uniqueValues.slice(i, i + 5).map(v => 
-        Array.from(RANK_VALUES.entries()).find(([_, val]) => val === v)![0]
+        Array.from(RANK_VALUES.entries()).find(([, val]) => val === v)![0]
       );
     }
   }

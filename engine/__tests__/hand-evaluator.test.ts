@@ -1,5 +1,5 @@
 import { evaluateHand, compareHands, getHandDescription } from '../hand-evaluator';
-import { Card, HandRank } from '../types';
+import { Card } from '../types';
 
 // Helper function to create cards
 function card(rank: string, suit: string): Card {

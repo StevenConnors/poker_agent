@@ -1,6 +1,5 @@
-import { GameState, NewGameConfig, Action, PokerError, Result, ShowdownResult, Card, Rank, Suit, Player, Table, PotManager, ActionType, Stage, BettingRound } from './types';
-import { createDeck, shuffleDeck, startHand, validateHandStart } from './game-flow';
-import { getActivePlayers, getNextActivePlayerIndex, findPlayerById, getSeatedPlayers } from './player-manager';
+import { GameState, Action, PokerError, Result, ShowdownResult, Player, PotManager, Stage, BettingRound } from './types';
+import { getActivePlayers, getNextActivePlayerIndex, findPlayerById, getSeatedPlayers, moveButton } from './player-manager';
 import { evaluateHand, compareHands } from './hand-evaluator';
 
 // --- Utility Functions ---
@@ -11,12 +10,7 @@ function maxBet(bets: number[]): number {
 
 function minRaise(gs: GameState): number {
   // NLHE: min raise is previous raise amount or big blind
-  const bb = gs.table.bigBlind;
-  const bets = gs.bettingRound.betsThisRound;
-  const raises = bets.filter(b => b > bb);
-  if (raises.length < 2) return bb;
-  const sorted = [...raises].sort((a, b) => b - a);
-  return sorted[0] - sorted[1];
+  return gs.bettingRound.lastRaiseAmount > 0 ? gs.bettingRound.lastRaiseAmount : gs.table.bigBlind;
 }
 
 function getCurrentPlayer(gs: GameState): Player | null {
@@ -25,6 +19,14 @@ function getCurrentPlayer(gs: GameState): Player | null {
 }
 
 // --- Pot Management ---
+
+function getCurrentPotTotal(gs: GameState): number {
+  // During betting, the visible pot includes what's already committed
+  // plus what's been bet in the current round
+  const bets = gs.bettingRound.betsThisRound;
+  const currentRoundTotal = bets.reduce((sum, bet) => sum + bet, 0);
+  return gs.potManager.totalPot + currentRoundTotal;
+}
 
 function calculatePots(gs: GameState): PotManager {
   const bets = gs.bettingRound.betsThisRound;
@@ -40,6 +42,8 @@ function calculatePots(gs: GameState): PotManager {
 }
 
 // --- Betting Round Logic ---
+
+export { getCurrentPotTotal };
 
 export function legalActions(gs: GameState): Action[] {
   const player = getCurrentPlayer(gs);
@@ -104,16 +108,18 @@ export function legalActions(gs: GameState): Action[] {
 function isBettingRoundComplete(gs: GameState): boolean {
   const bets = gs.bettingRound.betsThisRound;
   const maxB = maxBet(bets);
-  const activePlayers = getActivePlayers(gs);
   
-  // Need at least one active player
-  if (activePlayers.length === 0) return true;
+  // Get all seated players (not just active ones) - we need to check if all players who started the round have acted
+  const seatedPlayers = getSeatedPlayers(gs);
   
-  // All active players must have acted and either:
+  // Need at least one player
+  if (seatedPlayers.length === 0) return true;
+  
+  // All seated players must have acted and either:
   // 1. Matched the max bet, or
   // 2. Are all-in, or
   // 3. Have folded
-  return activePlayers.every(player => {
+  return seatedPlayers.every(player => {
     const seatIndex = player.seatIndex!;
     const hasActed = gs.bettingRound.playersActed[seatIndex];
     const hasMatchedBet = bets[seatIndex] === maxB;
@@ -193,8 +199,10 @@ function advanceGameStage(gs: GameState): GameState {
   let newState = { ...gs, stage: nextStage };
   
   // Deal community cards if moving to flop, turn, or river
+  // Pass the OLD state so dealCommunityCards can check the current stage
   if (nextStage === 'flop' || nextStage === 'turn' || nextStage === 'river') {
-    newState = dealCommunityCards(newState);
+    newState = dealCommunityCards(gs);
+    newState.stage = nextStage; // Update stage after dealing cards
   }
   
   // Reset betting round for new stage
@@ -207,7 +215,7 @@ function advanceGameStage(gs: GameState): GameState {
 
 // --- Main Game Logic ---
 
-export function newGame(cfg: NewGameConfig): GameState {
+export function newGame(): GameState {
   throw new Error('Use GameManager.createEmptyGame() instead - newGame function is deprecated');
 }
 
@@ -358,7 +366,7 @@ export function showdown(gs: GameState): Result<ShowdownResult[], PokerError> {
     // Try to evaluate hand, fall back to basic evaluation if not enough cards
     try {
       hand = evaluateHand([...winner.hole, ...gs.board]);
-    } catch (error) {
+    } catch {
       // Not enough cards for full evaluation, use basic high card with hole cards
       hand = {
         rank: 'high-card' as const,
@@ -386,7 +394,7 @@ export function showdown(gs: GameState): Result<ShowdownResult[], PokerError> {
     
     try {
       hand = evaluateHand([...player.hole, ...gs.board]);
-    } catch (error) {
+    } catch {
       // Not enough cards for full evaluation, use basic high card with hole cards
       hand = {
         rank: 'high-card' as const,
@@ -420,6 +428,104 @@ export function showdown(gs: GameState): Result<ShowdownResult[], PokerError> {
   }));
   
   return { ok: true, value: results };
+}
+
+/**
+ * Award winnings to players and update their stacks
+ */
+export function awardWinnings(gs: GameState, showdownResults: ShowdownResult[]): GameState {
+  const updatedSeats = gs.table.seats.map(seat => {
+    if (!seat.player) return seat;
+    
+    // Find this player's winnings
+    const winnings = showdownResults.find(result => result.playerId === seat.player!.id);
+    
+    if (winnings) {
+      return {
+        ...seat,
+        player: {
+          ...seat.player,
+          stack: seat.player.stack + winnings.amountWon
+        }
+      };
+    }
+    
+    return seat;
+  });
+  
+  return {
+    ...gs,
+    table: {
+      ...gs.table,
+      seats: updatedSeats
+    },
+    // Reset pot after awarding winnings
+    potManager: {
+      mainPot: 0,
+      sidePots: [],
+      totalPot: 0
+    },
+    winners: showdownResults,
+    stage: 'finished'
+  };
+}
+
+/**
+ * Complete the current hand and prepare for the next hand
+ */
+export function completeHand(gs: GameState): Result<GameState, PokerError> {
+  // First run showdown to determine winners
+  const showdownResult = showdown(gs);
+  if (!showdownResult.ok) {
+    return { ok: false, error: PokerError.Unknown };
+  }
+  
+  // Award winnings to players
+  let gameState = awardWinnings(gs, showdownResult.value);
+  
+  // Move button to next player (as per poker rules)
+  gameState = moveButton(gameState);
+  
+  // Reset all player statuses and hole cards for next hand
+  const resetSeats = gameState.table.seats.map(seat => {
+    if (!seat.player) return seat;
+    
+    return {
+      ...seat,
+      player: {
+        ...seat.player,
+        status: seat.player.stack > 0 ? 'waiting' as const : 'out' as const,
+        hole: []
+      }
+    };
+  });
+  
+  // Prepare game state for next hand
+  const nextHandState: GameState = {
+    ...gameState,
+    stage: 'init',
+    board: [],
+    deck: [],
+    bettingRound: {
+      stage: 'init',
+      currentBet: 0,
+      lastRaiseAmount: 0,
+      lastRaiserIndex: -1,
+      actionIndex: 0,
+      betsThisRound: Array(gameState.table.seats.length).fill(0),
+      playersActed: Array(gameState.table.seats.length).fill(false),
+      isComplete: false
+    },
+    table: {
+      ...gameState.table,
+      seats: resetSeats
+    },
+    handsPlayed: gameState.handsPlayed + 1,
+    isHandActive: false,
+    winners: undefined
+  };
+  
+  return { ok: true, value: nextHandState };
 }
 
 // Export utility functions for use by other modules

@@ -133,6 +133,22 @@ export class ApiClient {
     return response.value!;
   }
 
+  async awardWinnings(gameId: string) {
+    const response = await this.request('awardWinnings', { gameId });
+    if (!response.ok) {
+      throw new Error(`Failed to award winnings: ${JSON.stringify(response)}`);
+    }
+    return response.value!;
+  }
+
+  async completeHand(gameId: string): Promise<GameState> {
+    const response = await this.request<GameState>('completeHand', { gameId });
+    if (!response.ok) {
+      throw new Error(`Failed to complete hand: ${JSON.stringify(response)}`);
+    }
+    return response.value!;
+  }
+
   async listGames(): Promise<string[]> {
     const response = await this.request<string[]>('listGames');
     if (!response.ok) {

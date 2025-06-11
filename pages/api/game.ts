@@ -104,6 +104,20 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         res.status(200).json(result);
         break;
       }
+
+      case 'awardWinnings': {
+        const { gameId } = payload as { gameId: string };
+        const result = GameManager.awardWinnings(gameId);
+        res.status(200).json(result);
+        break;
+      }
+
+      case 'completeHand': {
+        const { gameId } = payload as { gameId: string };
+        const result = GameManager.completeHand(gameId);
+        res.status(200).json(result);
+        break;
+      }
       
       case 'listGames': {
         const gameIds = GameManager.listGames();

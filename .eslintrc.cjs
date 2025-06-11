@@ -17,6 +17,10 @@ module.exports = {
     ],
     'no-use-before-define': 'off',
     '@typescript-eslint/no-use-before-define': ['error'],
+    '@typescript-eslint/no-explicit-any': 'off',
+    'no-console': 'off',
+    '@typescript-eslint/no-use-before-define': 'off',
+    'no-plusplus': 'off',
   },
   settings: {
     'import/resolver': {

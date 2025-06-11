@@ -1,5 +1,5 @@
 import { GameState, Action, NewGameConfig, Result, PokerError, JoinGameConfig } from '../../engine/types';
-import { newGame, legalActions, applyAction, showdown } from '../../engine';
+import { newGame, legalActions, applyAction, showdown, awardWinnings, completeHand } from '../../engine';
 import { joinGame, leaveGame, initializeSeats, canStartHand, getActivePlayers, getSeatedPlayers } from '../../engine/player-manager';
 import { startHand, validateHandStart } from '../../engine/game-flow';
 
@@ -193,5 +193,37 @@ export class GameManager {
     } catch (error) {
       return { ok: false, error: `Failed to start hand: ${error}` };
     }
+  }
+
+  static awardWinnings(gameId: string) {
+    const gameState = this.getGame(gameId);
+    if (!gameState) {
+      return { ok: false, error: PokerError.GameNotStarted };
+    }
+
+    // Get showdown results first
+    const showdownResult = showdown(gameState);
+    if (!showdownResult.ok) {
+      return showdownResult;
+    }
+
+    // Award winnings to players
+    const updatedState = awardWinnings(gameState, showdownResult.value);
+    this.updateGame(gameId, updatedState);
+    
+    return { ok: true, value: { gameState: updatedState, showdownResults: showdownResult.value } };
+  }
+
+  static completeHand(gameId: string): Result<GameState, PokerError> {
+    const gameState = this.getGame(gameId);
+    if (!gameState) {
+      return { ok: false, error: PokerError.GameNotStarted };
+    }
+
+    const result = completeHand(gameState);
+    if (result.ok) {
+      this.updateGame(gameId, result.value);
+    }
+    return result;
   }
 } 

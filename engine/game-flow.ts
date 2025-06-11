@@ -1,5 +1,5 @@
-import { GameState, Card, Rank, Suit, Action } from './types';
-import { getBlindPositions, getSeatedPlayers } from './player-manager';
+import { GameState, Card, Rank, Suit } from './types';
+import { getBlindPositions } from './player-manager';
 
 // Card deck creation and management
 const SUITS: Suit[] = ['c', 'd', 'h', 's'];
@@ -159,8 +159,8 @@ function postBlinds(gameState: GameState): GameState {
     },
     potManager: {
       ...gameState.potManager,
-      mainPot: sbAmount + bbAmount,
-      totalPot: sbAmount + bbAmount
+      mainPot: 0,
+      totalPot: 0
     }
   };
 }

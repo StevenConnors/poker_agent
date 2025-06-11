@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 import readline from 'readline';
 import chalk from 'chalk';
-import figures from 'figures';
 import { ApiClient } from './api-client.js';
-import { GameState, JoinGameConfig, Card, Player } from '../engine/types.js';
+import { JoinGameConfig, Card } from '../engine/types.js';
 
 const apiClient = new ApiClient();
 let currentGameId: string | null = null;
@@ -110,7 +109,7 @@ async function showDetailedGameState(gameId?: string): Promise<void> {
               }).join(', ');
               console.log(chalk.blue(`Legal actions: ${actionList}`));
             }
-          } catch (error) {
+          } catch {
             // Ignore errors for legal actions
           }
         }
@@ -306,7 +305,7 @@ async function selectGame(gameId: string): Promise<void> {
     await apiClient.getGame(gameId);
     currentGameId = gameId;
     console.log(chalk.green(`✅ Selected ${gameId}`));
-  } catch (error) {
+  } catch {
     console.log(chalk.red(`❌ Error: Game not found`));
   }
 }
@@ -365,13 +364,82 @@ async function applyAction(actionType: string, amount?: number): Promise<void> {
       ...(amount !== undefined && { amount })
     };
     
-    const gameState = await apiClient.applyAction(currentGameId, action);
+    await apiClient.applyAction(currentGameId, action);
     console.log(chalk.green(`✅ ${actionType} applied successfully`));
     
     // Show updated detailed game state
     await showDetailedGameState();
   } catch (error) {
     console.log(chalk.red(`❌ Error applying ${actionType}: ${error}`));
+  }
+}
+
+async function showdown(): Promise<void> {
+  if (!currentGameId) {
+    console.log(chalk.yellow('⚠️ No active game selected'));
+    return;
+  }
+  
+  try {
+    const result = await apiClient.showdown(currentGameId);
+    console.log(chalk.green('🎊 Showdown Results:'));
+    
+    if (Array.isArray(result)) {
+      result.forEach((winner: any, index: number) => {
+        console.log(chalk.cyan(`${index + 1}. Player ${winner.playerId} (Seat ${winner.seatIndex + 1})`));
+        console.log(chalk.white(`   Hand: ${winner.hand.rank}`));
+        console.log(chalk.green(`   Won: ${formatPot(winner.amountWon)}`));
+      });
+    }
+  } catch (error) {
+    console.log(chalk.red(`❌ Error getting showdown results: ${error}`));
+  }
+}
+
+async function awardWinnings(): Promise<void> {
+  if (!currentGameId) {
+    console.log(chalk.yellow('⚠️ No active game selected'));
+    return;
+  }
+  
+  try {
+    const result = await apiClient.awardWinnings(currentGameId);
+    console.log(chalk.green('💰 Winnings awarded!'));
+    
+    // Show detailed results
+    if (result && typeof result === 'object' && 'showdownResults' in result) {
+      console.log(chalk.cyan('Winners:'));
+      const showdownResults = (result as any).showdownResults;
+      if (Array.isArray(showdownResults)) {
+        showdownResults.forEach((winner: any, index: number) => {
+          console.log(chalk.green(`  ${index + 1}. Player ${winner.playerId} won ${formatPot(winner.amountWon)}`));
+        });
+      }
+    }
+    
+    // Show updated game state
+    await showDetailedGameState();
+  } catch (error) {
+    console.log(chalk.red(`❌ Error awarding winnings: ${error}`));
+  }
+}
+
+async function completeHand(): Promise<void> {
+  if (!currentGameId) {
+    console.log(chalk.yellow('⚠️ No active game selected'));
+    return;
+  }
+  
+  try {
+    const gameState = await apiClient.completeHand(currentGameId);
+    console.log(chalk.green('🔄 Hand completed and button moved!'));
+    console.log(chalk.cyan(`🎯 Button now at seat ${gameState.table.buttonIndex + 1}`));
+    console.log(chalk.cyan(`🎲 Hands played: ${gameState.handsPlayed}`));
+    
+    // Show updated game state
+    await showDetailedGameState();
+  } catch (error) {
+    console.log(chalk.red(`❌ Error completing hand: ${error}`));
   }
 }
 
@@ -386,6 +454,9 @@ function showHelp(): void {
 • state - Show detailed game state (cards, board, turn)
 • start - Start a new hand (when ready)
 • a <action> [amount] - Apply poker action (check, call, fold, bet, raise)
+• showdown - Show current showdown results
+• award - Award winnings to players
+• complete - Complete current hand and move button
 • g - List all active games
 • l - Show legal actions
 • h - Show this help menu
@@ -487,6 +558,18 @@ async function handleCommand(line: string): Promise<void> {
         await applyAction(actionType, amount);
         break;
       }
+
+      case 'showdown':
+        await showdown();
+        break;
+
+      case 'award':
+        await awardWinnings();
+        break;
+
+      case 'complete':
+        await completeHand();
+        break;
         
       default:
         console.log(chalk.yellow(`❌ Unknown command: ${cmd}. Type "h" for help.`));
