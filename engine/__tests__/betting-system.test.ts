@@ -7,13 +7,11 @@ import {
   getCurrentPlayer,
   isBettingRoundComplete,
   awardWinnings,
-  completeHand,
-  getCurrentPotTotal
+  completeHand
 } from '../index';
-import { startHand, validateHandStart, createDeck, shuffleDeck } from '../game-flow';
+import { startHand, validateHandStart } from '../game-flow';
 import { joinGame, initializeSeats } from '../player-manager';
 import { GameState, Table, Action, JoinGameConfig, ActionType, PokerError } from '../types';
-import { evaluateHand } from '../hand-evaluator';
 
 // Helper function to create a basic game state
 function createTestGameState(maxPlayers = 6, minPlayers = 2): GameState {
@@ -242,7 +240,6 @@ describe('Betting System', () => {
       
       if (result.ok) {
         const newState = result.value;
-        const player = newState.table.seats[currentPlayer.seatIndex!].player!;
         expect(newState.bettingRound.betsThisRound[currentPlayer.seatIndex!]).toBe(betAmount);
         expect(newState.bettingRound.currentBet).toBe(betAmount);
       }
@@ -522,10 +519,7 @@ describe('Betting System', () => {
       gameState = addPlayersToGame(gameState, 2);
       gameState = startHand(gameState, 'test-seed');
       
-      // Get initial stacks
-      const player1Stack = gameState.table.seats[0].player!.stack;
-      const player2Stack = gameState.table.seats[1].player!.stack;
-      const totalPot = gameState.potManager.totalPot;
+      // Test awarding winnings
       
       // Player 1 calls, player 2 checks - go to showdown
       let currentPlayer = getCurrentPlayer(gameState)!;

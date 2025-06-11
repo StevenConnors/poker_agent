@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 import readline from 'readline';
 import chalk from 'chalk';
-import figures from 'figures';
 import { ApiClient } from './api-client.js';
-import { GameState, JoinGameConfig, Card, Player } from '../engine/types.js';
+import { JoinGameConfig, Card } from '../engine/types.js';
 
 const apiClient = new ApiClient();
 let currentGameId: string | null = null;
@@ -110,7 +109,7 @@ async function showDetailedGameState(gameId?: string): Promise<void> {
               }).join(', ');
               console.log(chalk.blue(`Legal actions: ${actionList}`));
             }
-          } catch (error) {
+          } catch {
             // Ignore errors for legal actions
           }
         }
@@ -306,7 +305,7 @@ async function selectGame(gameId: string): Promise<void> {
     await apiClient.getGame(gameId);
     currentGameId = gameId;
     console.log(chalk.green(`✅ Selected ${gameId}`));
-  } catch (error) {
+  } catch {
     console.log(chalk.red(`❌ Error: Game not found`));
   }
 }
@@ -365,7 +364,7 @@ async function applyAction(actionType: string, amount?: number): Promise<void> {
       ...(amount !== undefined && { amount })
     };
     
-    const gameState = await apiClient.applyAction(currentGameId, action);
+    await apiClient.applyAction(currentGameId, action);
     console.log(chalk.green(`✅ ${actionType} applied successfully`));
     
     // Show updated detailed game state

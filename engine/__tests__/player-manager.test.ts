@@ -2,19 +2,14 @@ import {
   initializeSeats, 
   findEmptySeat, 
   getActivePlayers, 
-  getSeatedPlayers,
-  findPlayerById,
-  hasMinimumPlayers,
-  isGameFull,
   joinGame,
   leaveGame,
   getNextActivePlayerIndex,
-  getNextAvailablePlayerIndex,
   moveButton,
   getBlindPositions,
   canStartHand
 } from '../player-manager';
-import { GameState, Table, NewGameConfig, JoinGameConfig, PokerError } from '../types';
+import { GameState, Table, JoinGameConfig, PokerError } from '../types';
 
 // Helper function to create a basic game state
 function createTestGameState(maxPlayers = 6, minPlayers = 2): GameState {

@@ -1,5 +1,4 @@
-import { GameState, NewGameConfig, Action, PokerError, Result, ShowdownResult, Card, Rank, Suit, Player, Table, PotManager, ActionType, Stage, BettingRound } from './types';
-import { createDeck, shuffleDeck, startHand, validateHandStart } from './game-flow';
+import { GameState, Action, PokerError, Result, ShowdownResult, Player, PotManager, Stage, BettingRound } from './types';
 import { getActivePlayers, getNextActivePlayerIndex, findPlayerById, getSeatedPlayers, moveButton } from './player-manager';
 import { evaluateHand, compareHands } from './hand-evaluator';
 
@@ -216,7 +215,7 @@ function advanceGameStage(gs: GameState): GameState {
 
 // --- Main Game Logic ---
 
-export function newGame(cfg: NewGameConfig): GameState {
+export function newGame(): GameState {
   throw new Error('Use GameManager.createEmptyGame() instead - newGame function is deprecated');
 }
 
@@ -367,7 +366,7 @@ export function showdown(gs: GameState): Result<ShowdownResult[], PokerError> {
     // Try to evaluate hand, fall back to basic evaluation if not enough cards
     try {
       hand = evaluateHand([...winner.hole, ...gs.board]);
-    } catch (error) {
+    } catch {
       // Not enough cards for full evaluation, use basic high card with hole cards
       hand = {
         rank: 'high-card' as const,
@@ -395,7 +394,7 @@ export function showdown(gs: GameState): Result<ShowdownResult[], PokerError> {
     
     try {
       hand = evaluateHand([...player.hole, ...gs.board]);
-    } catch (error) {
+    } catch {
       // Not enough cards for full evaluation, use basic high card with hole cards
       hand = {
         rank: 'high-card' as const,
