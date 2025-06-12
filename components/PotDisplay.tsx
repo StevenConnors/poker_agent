@@ -99,12 +99,12 @@ export const PotDisplay: React.FC<PotDisplayProps> = ({
         text={formatPotAmount(potManager.totalPot)}
         style={{
           fontFamily: 'Arial',
-          fontSize: 16,
+          fontSize: 20,
           fill: 0xffd740,
           fontWeight: 'bold',
           align: 'center' as const,
           stroke: 0x000000,
-          strokeThickness: 2,
+          strokeThickness: 3,
         } as any}
         x={0}
         y={-3}
@@ -116,14 +116,14 @@ export const PotDisplay: React.FC<PotDisplayProps> = ({
           text={`+${potManager.sidePots.length} side pot${potManager.sidePots.length > 1 ? 's' : ''}`}
           style={{
             fontFamily: 'Arial',
-            fontSize: 10,
+            fontSize: 12,
             fill: 0xfbbf24,
             align: 'center' as const,
             stroke: 0x000000,
-            strokeThickness: 1,
+            strokeThickness: 2,
           } as any}
           x={0}
-          y={15}
+          y={18}
         />
       )}
       
@@ -132,12 +132,12 @@ export const PotDisplay: React.FC<PotDisplayProps> = ({
         text="POT"
         style={{
           fontFamily: 'Arial',
-          fontSize: 8,
+          fontSize: 10,
           fill: 0xffffff,
           fontWeight: 'bold',
           align: 'center' as const,
           stroke: 0x000000,
-          strokeThickness: 1,
+          strokeThickness: 2,
         } as any}
         x={-50}
         y={-2}

@@ -10,7 +10,7 @@ interface TableStageProps {
 
 export const TableStage: React.FC<TableStageProps> = ({ children, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 1200, height: 675 }); // 16:9 aspect ratio
+  const [dimensions, setDimensions] = useState({ width: 1200, height: 750 }); // Updated to match new stage height
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -23,8 +23,8 @@ export const TableStage: React.FC<TableStageProps> = ({ children, className = ''
     const container = containerRef.current;
     const { clientWidth, clientHeight } = container;
     
-    // Maintain 16:9 aspect ratio
-    const aspectRatio = 16 / 9;
+    // Use 1200:750 aspect ratio (1.6:1) to accommodate action buttons
+    const aspectRatio = 1200 / 750;
     let width = clientWidth;
     let height = clientWidth / aspectRatio;
     

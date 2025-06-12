@@ -83,7 +83,7 @@ export const CommunityCards: React.FC<CommunityCardsProps> = ({
     
     // Card background
     if (card && isVisible) {
-      // Draw actual card
+      // Draw actual card - white background
       g.beginFill(0xffffff);
       g.lineStyle(2, 0x333333);
       g.drawRoundedRect(
@@ -96,15 +96,35 @@ export const CommunityCards: React.FC<CommunityCardsProps> = ({
       g.endFill();
       g.lineStyle(0);
       
-      // Card suit and rank (simplified)
-      const suitColor = card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000;
-      g.beginFill(suitColor);
-      g.drawRoundedRect(-25, -35, 50, 20, 3);
+      // Determine card color based on suit
+      const isRed = card.suit === 'h' || card.suit === 'd';
+      const cardColor = isRed ? 0xff0000 : 0x000000;
+      
+      // Top-left corner rank and suit
+      g.beginFill(cardColor);
+      // Small rectangle for rank
+      g.drawRoundedRect(-cardWidth/2 + 4, -cardHeight/2 + 4, 12, 8, 2);
       g.endFill();
       
-      // Suit symbol area
-      g.beginFill(suitColor);
-      g.drawCircle(0, 0, 15);
+      // Top-left suit symbol
+      g.beginFill(cardColor);
+      g.drawRoundedRect(-cardWidth/2 + 4, -cardHeight/2 + 15, 12, 8, 2);
+      g.endFill();
+      
+      // Center suit symbol (larger)
+      g.beginFill(cardColor);
+      g.drawCircle(0, 0, 18);
+      g.endFill();
+      
+      // Bottom-right corner (rotated) rank and suit
+      g.beginFill(cardColor);
+      // Small rectangle for rank (rotated position)
+      g.drawRoundedRect(cardWidth/2 - 16, cardHeight/2 - 12, 12, 8, 2);
+      g.endFill();
+      
+      // Bottom-right suit symbol (rotated position)
+      g.beginFill(cardColor);
+      g.drawRoundedRect(cardWidth/2 - 16, cardHeight/2 - 23, 12, 8, 2);
       g.endFill();
       
     } else if (isVisible) {
@@ -133,10 +153,36 @@ export const CommunityCards: React.FC<CommunityCardsProps> = ({
 
   const cardTextStyle = useMemo(() => ({
     fontFamily: 'Arial',
-    fontSize: 12,
+    fontSize: 10, // Increased from 12
     fontWeight: 'bold',
     align: 'center' as const,
   }), []);
+
+  const suitTextStyle = useMemo(() => ({
+    fontFamily: 'Arial',
+    fontSize: 14, // For suit symbols
+    fontWeight: 'bold',
+    align: 'center' as const,
+  }), []);
+
+  // Helper function to get suit symbol
+  const getSuitSymbol = (suit: string): string => {
+    switch (suit) {
+      case 'h': return '♥';
+      case 'd': return '♦';
+      case 'c': return '♣';
+      case 's': return '♠';
+      default: return '';
+    }
+  };
+
+  // Helper function to get rank display
+  const getRankDisplay = (rank: string): string => {
+    switch (rank) {
+      case 'T': return '10';
+      default: return rank;
+    }
+  };
 
   return (
     <Container x={x} y={y}>
@@ -149,18 +195,66 @@ export const CommunityCards: React.FC<CommunityCardsProps> = ({
         />
       ))}
       
-      {/* Card labels when visible */}
+      {/* Card labels when visible - showing actual rank and suit */}
       {cards.slice(0, visibleCardCount).map((card, index) => (
-        <Text
-          key={`label-${index}`}
-          text={`${card.rank}${card.suit.toUpperCase()}`}
-          style={{
-            ...cardTextStyle,
-            fill: card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000,
-          } as any}
-          x={(index - 2) * (cardWidth + cardSpacing)}
-          y={-10}
-        />
+        <Container key={`card-text-${index}`} x={(index - 2) * (cardWidth + cardSpacing)} y={0}>
+          {/* Top-left rank */}
+          <Text
+            text={getRankDisplay(card.rank)}
+            style={{
+              ...cardTextStyle,
+              fill: card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000,
+            } as any}
+            x={-cardWidth/2 + 10}
+            y={-cardHeight/2 + 8}
+          />
+          
+          {/* Top-left suit */}
+          <Text
+            text={getSuitSymbol(card.suit)}
+            style={{
+              ...cardTextStyle,
+              fill: card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000,
+            } as any}
+            x={-cardWidth/2 + 10}
+            y={-cardHeight/2 + 19}
+          />
+          
+          {/* Center suit symbol */}
+          <Text
+            text={getSuitSymbol(card.suit)}
+            style={{
+              ...suitTextStyle,
+              fill: card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000,
+            } as any}
+            x={0}
+            y={-2}
+          />
+          
+          {/* Bottom-right rank (rotated) */}
+          <Text
+            text={getRankDisplay(card.rank)}
+            style={{
+              ...cardTextStyle,
+              fill: card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000,
+            } as any}
+            x={cardWidth/2 - 10}
+            y={cardHeight/2 - 12}
+            rotation={Math.PI} // 180 degree rotation
+          />
+          
+          {/* Bottom-right suit (rotated) */}
+          <Text
+            text={getSuitSymbol(card.suit)}
+            style={{
+              ...cardTextStyle,
+              fill: card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000,
+            } as any}
+            x={cardWidth/2 - 10}
+            y={cardHeight/2 - 19}
+            rotation={Math.PI} // 180 degree rotation
+          />
+        </Container>
       ))}
     </Container>
   );

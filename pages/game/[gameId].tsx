@@ -113,11 +113,20 @@ export default function GamePage() {
 
   // Handle player actions
   const handleAction = async (action: any) => {
-    if (!gameId || !playerId) return;
+    console.log('🎯 handleAction called with:', action);
+    console.log('🎯 gameId:', gameId, 'playerId:', playerId);
+    
+    if (!gameId || !playerId) {
+      console.log('❌ Missing gameId or playerId');
+      return;
+    }
     
     // Find current player's seat index
     const currentPlayerSeat = gameState?.table.seats.find(seat => seat.player?.id === playerId);
+    console.log('🎯 Found current player seat:', currentPlayerSeat);
+    
     if (!currentPlayerSeat || currentPlayerSeat.player?.seatIndex === undefined) {
+      console.log('❌ Player not found in game or missing seatIndex');
       setError('Player not found in game');
       return;
     }
@@ -130,16 +139,22 @@ export default function GamePage() {
       timestamp: action.timestamp || Date.now()
     };
     
+    console.log('🚀 About to call API with completeAction:', completeAction);
+    
     try {
       const result = await callGameAPI('applyAction', { gameId, action: completeAction });
+      console.log('📡 API result:', result);
       
       if (result.ok) {
+        console.log('✅ Action successful, reloading game state');
         // Reload game state after action
         await loadGameState();
       } else {
+        console.log('❌ Action failed:', result.error);
         setError(result.error || 'Action failed');
       }
-    } catch {
+    } catch (error) {
+      console.log('💥 Exception during action:', error);
       setError('Failed to perform action');
     }
   };

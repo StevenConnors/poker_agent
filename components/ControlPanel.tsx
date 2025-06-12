@@ -75,135 +75,144 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
   if (legalActions.length === 0) {
     return (
-      <div className={`bg-black/20 backdrop-blur-sm rounded-lg p-4 text-center ${className}`}>
-        <p className="text-gray-400">Waiting for other players...</p>
+      <div className={`bg-black/30 backdrop-blur-sm rounded-xl border border-gray-700 p-6 text-center ${className}`}>
+        <p className="text-gray-400 text-lg">Waiting for other players...</p>
       </div>
     );
   }
 
   return (
-    <div className={`bg-black/20 backdrop-blur-sm rounded-lg p-4 space-y-4 ${className}`}>
-      <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+    <div className={`bg-black/30 backdrop-blur-sm rounded-xl border border-gray-700 p-6 space-y-4 ${className}`} 
+         style={{ minWidth: '320px' }}>
+      <h3 className="text-white font-bold text-xl mb-4 flex items-center gap-3">
         🎮 Your Turn
+        <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
       </h3>
 
-      {/* Primary action buttons */}
-      <div className="flex gap-3 flex-wrap">
+      {/* Primary action buttons - larger and more prominent */}
+      <div className="grid grid-cols-1 gap-3">
         {canFold && (
           <button
             onClick={() => handleAction('fold')}
-            className="flex-1 min-w-24 py-3 px-4 rounded-lg font-semibold transition-all
-                     bg-red-600/80 hover:bg-red-600 text-white border-2 border-red-500
-                     hover:scale-105 active:scale-95"
+            className="py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200
+                     bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 
+                     text-white border-2 border-red-500 shadow-lg
+                     hover:scale-105 active:scale-95 hover:shadow-xl"
           >
-            ❌ Fold
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">❌</span>
+              <span>Fold</span>
+            </div>
           </button>
         )}
 
         {canCheck && (
           <button
             onClick={() => handleAction('check')}
-            className="flex-1 min-w-24 py-3 px-4 rounded-lg font-semibold transition-all
-                     bg-green-600/80 hover:bg-green-600 text-white border-2 border-green-500
-                     hover:scale-105 active:scale-95"
+            className="py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200
+                     bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 
+                     text-white border-2 border-green-500 shadow-lg
+                     hover:scale-105 active:scale-95 hover:shadow-xl"
           >
-            ✅ Check
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">✅</span>
+              <span>Check</span>
+            </div>
           </button>
         )}
 
         {canCall && (
           <button
             onClick={() => handleAction('call', callAmount)}
-            className="flex-1 min-w-24 py-3 px-4 rounded-lg font-semibold transition-all
-                     bg-blue-600/80 hover:bg-blue-600 text-white border-2 border-blue-500
-                     hover:scale-105 active:scale-95"
+            className="py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200
+                     bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 
+                     text-white border-2 border-blue-500 shadow-lg
+                     hover:scale-105 active:scale-95 hover:shadow-xl"
           >
-            📞 Call ${callAmount}
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">📞</span>
+              <span>Call ${callAmount}</span>
+            </div>
           </button>
         )}
 
-        {canBet && (
+        {(canBet || canRaise) && (
+          <div className="space-y-3">
+            <button
+              onClick={() => setIsCustomRaise(!isCustomRaise)}
+              className="w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200
+                       bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 
+                       text-white border-2 border-orange-500 shadow-lg
+                       hover:scale-105 active:scale-95 hover:shadow-xl"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">📈</span>
+                <span>{canRaise ? 'Raise' : 'Bet'}</span>
+              </div>
+            </button>
+
+            {isCustomRaise && (
+              <div className="space-y-3 p-4 bg-black/20 rounded-lg border border-gray-600">
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={raiseAmount}
+                    onChange={(e) => setRaiseAmount(Math.max(minRaise, parseInt(e.target.value) || minRaise))}
+                    min={minRaise}
+                    max={playerStack}
+                    className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white text-lg
+                             focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={handleRaiseSubmit}
+                    className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 
+                             hover:from-orange-500 hover:to-orange-600 text-white rounded-lg
+                             font-bold transition-all border-2 border-orange-500 text-lg
+                             hover:scale-105 active:scale-95"
+                  >
+                    📈 Confirm
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {quickRaiseOptions.map((option) => (
+                    <button
+                      key={option.label}
+                      onClick={() => handleAction(canRaise ? 'raise' : 'bet', option.amount)}
+                      className="py-2 px-3 bg-orange-600/80 hover:bg-orange-600 text-white rounded-lg
+                               font-semibold transition-all border border-orange-500
+                               hover:scale-105 active:scale-95 text-sm"
+                    >
+                      {option.label}
+                      <br />
+                      <span className="text-xs opacity-80">${option.amount}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {canAllIn && (
           <button
-            onClick={() => handleAction('bet', minRaise)}
-            className="flex-1 min-w-24 py-3 px-4 rounded-lg font-semibold transition-all
-                     bg-yellow-600/80 hover:bg-yellow-600 text-white border-2 border-yellow-500
-                     hover:scale-105 active:scale-95"
+            onClick={() => handleAction('all-in', playerStack)}
+            className="py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200
+                     bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 
+                     text-white border-2 border-purple-500 shadow-lg
+                     hover:scale-105 active:scale-95 hover:shadow-xl"
           >
-            💰 Bet ${minRaise}
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">🎯</span>
+              <span>All-In (${playerStack})</span>
+            </div>
           </button>
         )}
       </div>
 
-      {/* Raise controls */}
-      {(canRaise || canBet) && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <label className="text-white text-sm font-medium">
-              {canRaise ? 'Raise to:' : 'Bet:'}
-            </label>
-            <button
-              onClick={() => setIsCustomRaise(!isCustomRaise)}
-              className="text-blue-400 hover:text-blue-300 text-sm underline"
-            >
-              {isCustomRaise ? 'Quick amounts' : 'Custom amount'}
-            </button>
-          </div>
-
-          {isCustomRaise ? (
-            <div className="flex gap-2">
-              <input
-                type="number"
-                value={raiseAmount}
-                onChange={(e) => setRaiseAmount(Math.max(minRaise, parseInt(e.target.value) || minRaise))}
-                min={minRaise}
-                max={playerStack}
-                className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white
-                         focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={handleRaiseSubmit}
-                className="px-4 py-2 bg-orange-600/80 hover:bg-orange-600 text-white rounded-lg
-                         font-semibold transition-all border-2 border-orange-500
-                         hover:scale-105 active:scale-95"
-              >
-                📈 {canRaise ? 'Raise' : 'Bet'}
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {quickRaiseOptions.map((option) => (
-                <button
-                  key={option.label}
-                  onClick={() => handleAction(canRaise ? 'raise' : 'bet', option.amount)}
-                  className="py-2 px-3 bg-orange-600/80 hover:bg-orange-600 text-white rounded-lg
-                           font-semibold transition-all border border-orange-500
-                           hover:scale-105 active:scale-95 text-sm"
-                >
-                  {option.label}
-                  <br />
-                  <span className="text-xs opacity-80">${option.amount}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* All-in button */}
-      {canAllIn && (
-        <button
-          onClick={() => handleAction('all-in', playerStack)}
-          className="w-full py-3 px-4 rounded-lg font-semibold transition-all
-                   bg-red-700/80 hover:bg-red-700 text-white border-2 border-red-600
-                   hover:scale-105 active:scale-95"
-        >
-          🎯 All-In (${playerStack})
-        </button>
-      )}
-
-      {/* Player info */}
-      <div className="text-xs text-gray-400 text-center pt-2 border-t border-white/10">
-        Stack: ${playerStack.toLocaleString()} | Current bet: ${currentBet.toLocaleString()}
+      {/* Player info with better typography */}
+      <div className="text-sm text-gray-300 text-center pt-3 border-t border-white/10 space-y-1">
+        <div>Stack: <span className="text-green-400 font-bold">${playerStack.toLocaleString()}</span></div>
+        <div>Current bet: <span className="text-yellow-400 font-bold">${currentBet.toLocaleString()}</span></div>
       </div>
     </div>
   );

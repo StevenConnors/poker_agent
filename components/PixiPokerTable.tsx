@@ -9,8 +9,11 @@ import { ChipStack } from './ChipStack';
 import { PotDisplay } from './PotDisplay';
 import { ActionLog } from './ActionLog';
 import { ControlPanel } from './ControlPanel';
+
 import { RoundSummaryModal } from './RoundSummaryModal';
 import { usePokerStore, type GameState, type Action } from '../lib/usePokerStore';
+import { Container, Graphics, Text } from '@pixi/react';
+import { PixiButtonComponent, getActionButtonColor } from './PixiButtonComponent';
 
 interface PixiPokerTableProps {
   gameState: GameState;
@@ -48,6 +51,21 @@ export const PixiPokerTable: React.FC<PixiPokerTableProps> = ({
   const currentPlayerSeatIndex = table.seats.findIndex(seat => seat.player?.id === currentPlayerId);
   const isCurrentPlayerTurn = bettingRound.actionIndex === currentPlayerSeatIndex;
 
+  // Debug logging
+  console.log('🔍 PixiPokerTable Debug Info:', {
+    currentPlayerId,
+    currentPlayer: currentPlayer?.name,
+    currentPlayerSeatIndex,
+    actionIndex: bettingRound.actionIndex,
+    isCurrentPlayerTurn,
+    legalActionsCount: legalActions.length,
+    legalActionTypes: legalActions.map(a => a.type),
+    stage,
+    isHandActive,
+    showCondition: currentPlayer && isCurrentPlayerTurn,
+    bettingRoundComplete: bettingRound.isComplete
+  });
+
   // Calculate seat positions in an arc from 2 o'clock to 10 o'clock
   const getSeatPosition = (index: number, total: number = 6, stageWidth: number = 1200, stageHeight: number = 675) => {
     // Define the arc from 2 o'clock to 10 o'clock
@@ -70,9 +88,9 @@ export const PixiPokerTable: React.FC<PixiPokerTableProps> = ({
   const activePlayers = table.seats.filter(seat => seat.player?.status === 'active').length;
   const canStartHand = seatedPlayers >= 2 && !isHandActive;
 
-  // Stage dimensions (16:9 aspect ratio)
+  // Stage dimensions (16:9 aspect ratio, but taller to accommodate action buttons)
   const stageWidth = 1200;
-  const stageHeight = 675;
+  const stageHeight = 750; // Increased from 675 to 750
 
   return (
     <div className={`min-h-screen relative overflow-hidden ${className}`}>
@@ -127,7 +145,7 @@ export const PixiPokerTable: React.FC<PixiPokerTableProps> = ({
               isDealer={isDealer}
               currentBet={currentBet}
               seatIndex={index}
-              showCards={showAllCards || (isCurrentPlayerSeat && stage === 'showdown')}
+              showCards={showAllCards || isCurrentPlayerSeat}
               x={position.x}
               y={position.y}
             />
@@ -154,6 +172,69 @@ export const PixiPokerTable: React.FC<PixiPokerTableProps> = ({
             />
           );
         })}
+
+        {/* Action Panel - PixiJS version with new Button component */}
+        {currentPlayer && isCurrentPlayerTurn && legalActions.length > 0 && (
+          <Container x={stageWidth / 2} y={stageHeight - 120}>
+            {legalActions.map((action, index) => {
+              const buttonWidth = 120;
+              const buttonHeight = 50;
+              const buttonSpacing = 10;
+              const totalWidth = legalActions.length * buttonWidth + (legalActions.length - 1) * buttonSpacing;
+              const buttonX = (index * (buttonWidth + buttonSpacing)) - totalWidth / 2;
+              
+              // Get button color based on action type
+              const buttonColor = getActionButtonColor(action.type);
+              
+              // Create button text
+              const buttonText = `${action.type.toUpperCase()}${action.amount ? `\n$${action.amount}` : ''}`;
+              
+              return (
+                <PixiButtonComponent
+                  key={index}
+                  x={buttonX}
+                  y={0}
+                  width={buttonWidth}
+                  height={buttonHeight}
+                  backgroundColor={buttonColor}
+                  cornerRadius={8}
+                  borderColor={0xffffff}
+                  borderWidth={2}
+                  borderAlpha={0.3}
+                  text={buttonText}
+                  textStyle={{
+                    fontFamily: 'Arial, sans-serif',
+                    fontSize: action.amount ? 12 : 14,
+                    fontWeight: 'bold',
+                    fill: 0xffffff,
+                    align: 'center',
+                  }}
+                  onClick={() => {
+                    console.log('🎯 PixiJS Action button clicked!', {
+                      actionType: action.type,
+                      actionAmount: action.amount,
+                      currentPlayerId,
+                      currentPlayerSeatIndex,
+                      onActionFunction: typeof onAction
+                    });
+                    
+                    const completeAction = {
+                      ...action,
+                      playerId: currentPlayerId,
+                      seatIndex: currentPlayerSeatIndex,
+                      timestamp: Date.now(),
+                    };
+                    
+                    console.log('🚀 Calling onAction with:', completeAction);
+                    onAction(completeAction);
+                    console.log('✅ onAction call completed');
+                  }}
+                />
+              );
+            })}
+          </Container>
+        )}
+
       </TableStage>
 
       {/* DOM overlay elements */}
@@ -185,60 +266,40 @@ export const PixiPokerTable: React.FC<PixiPokerTableProps> = ({
             </div>
           )}
 
-          {/* Control panel for current player */}
-          {currentPlayer && isCurrentPlayerTurn && (
-            <ControlPanel
-              legalActions={legalActions}
-              currentBet={bettingRound.currentBet}
-              playerStack={currentPlayer.stack}
-              onAction={(action) => {
-                // Fill in player info
-                const completeAction = {
-                  ...action,
-                  playerId: currentPlayerId,
-                  seatIndex: currentPlayerSeatIndex,
-                  timestamp: Date.now(),
-                };
-                onAction(completeAction);
-              }}
-            />
-          )}
-
           {/* Showdown controls */}
-          {(stage === 'showdown' || stage === 'finished') && (
+          {stage === 'showdown' && (
             <div className="bg-black/20 backdrop-blur-sm rounded-lg p-4">
-              <h3 className="text-white font-semibold mb-3">Hand Complete</h3>
-              <div className="space-y-2">
-                {stage === 'showdown' && onShowdown && (
-                  <button
-                    onClick={onShowdown}
-                    className="w-full font-bold py-2 px-4 rounded-lg transition-all border-2 text-sm
-                             bg-purple-600/80 hover:bg-purple-600 text-white border-purple-500"
-                  >
-                    Run Showdown
-                  </button>
-                )}
-                {stage === 'finished' && gameState.winners && onAwardWinnings && (
-                  <button
-                    onClick={onAwardWinnings}
-                    className="w-full font-bold py-2 px-4 rounded-lg transition-all border-2 text-sm
-                             bg-orange-600/80 hover:bg-orange-600 text-white border-orange-500"
-                  >
-                    Award Winnings
-                  </button>
-                )}
-                {stage === 'finished' && onCompleteHand && (
-                  <button
-                    onClick={onCompleteHand}
-                    className="w-full font-bold py-2 px-4 rounded-lg transition-all border-2 text-sm
-                             bg-blue-600/80 hover:bg-blue-600 text-white border-blue-500"
-                  >
-                    Complete Hand
-                  </button>
-                )}
-              </div>
+              <h3 className="text-white font-semibold mb-3">Showdown</h3>
+              <button
+                onClick={onShowdown}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg mb-2 transition-colors"
+              >
+                Reveal Cards
+              </button>
+              <button
+                onClick={onAwardWinnings}
+                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg mb-2 transition-colors"
+              >
+                Award Winnings
+              </button>
+              <button
+                onClick={onCompleteHand}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+              >
+                Complete Hand
+              </button>
             </div>
           )}
+
+          {/* Leave game button */}
+          <div className="bg-black/20 backdrop-blur-sm rounded-lg p-4">
+            <button
+              onClick={onLeaveGame}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+            >
+              Leave Game
+            </button>
+          </div>
         </div>
 
         {/* Top bar - Game info */}
@@ -251,16 +312,6 @@ export const PixiPokerTable: React.FC<PixiPokerTableProps> = ({
               Blinds: ${table.smallBlind}/${table.bigBlind} • Stage: {stage} • Hands: {gameState.handsPlayed}
             </div>
           </div>
-        </div>
-
-        {/* Leave game button */}
-        <div className="absolute top-4 right-4 pointer-events-auto">
-          <button
-            onClick={onLeaveGame}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            Leave Game
-          </button>
         </div>
       </div>
 

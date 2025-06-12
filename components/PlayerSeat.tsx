@@ -108,16 +108,75 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
     g.endFill();
   }, [player]);
 
+  const drawCard = useCallback((g: any, card: any, isHidden: boolean) => {
+    g.clear();
+    
+    const cardW = 24; // Small card width
+    const cardH = 32; // Small card height
+    
+    if (isHidden || !card) {
+      // Card back
+      g.beginFill(0x1e3a8a); // Blue card back
+      g.lineStyle(1, 0x1e40af);
+      g.drawRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 3);
+      g.endFill();
+      g.lineStyle(0);
+      
+      // Pattern
+      g.beginFill(0x3b82f6);
+      g.drawRoundedRect(-cardW / 2 + 2, -cardH / 2 + 2, cardW - 4, cardH - 4, 2);
+      g.endFill();
+    } else {
+      // Card face
+      g.beginFill(0xffffff);
+      g.lineStyle(1, 0x333333);
+      g.drawRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 3);
+      g.endFill();
+      g.lineStyle(0);
+      
+      // Card color
+      const isRed = card.suit === 'h' || card.suit === 'd';
+      const cardColor = isRed ? 0xff0000 : 0x000000;
+      
+      // Simple card representation
+      g.beginFill(cardColor);
+      g.drawRoundedRect(-cardW / 2 + 2, -cardH / 2 + 2, 6, 4, 1);
+      g.endFill();
+      
+      g.beginFill(cardColor);
+      g.drawCircle(0, 0, 4);
+      g.endFill();
+    }
+  }, []);
+
+  const getSuitSymbol = (suit: string): string => {
+    switch (suit) {
+      case 'h': return '♥';
+      case 'd': return '♦';
+      case 'c': return '♣';
+      case 's': return '♠';
+      default: return '';
+    }
+  };
+
+  const getRankDisplay = (rank: string): string => {
+    switch (rank) {
+      case 'T': return '10';
+      default: return rank;
+    }
+  };
+
   const nameTextStyle: any = useMemo(() => ({
     fontFamily: 'Arial',
-    fontSize: 10,
+    fontSize: 14,
     fill: 0xffffff, // textColor from design tokens
     align: 'center',
+    fontWeight: 'bold',
   }), []);
 
   const stackTextStyle: any = useMemo(() => ({
     fontFamily: 'Arial',
-    fontSize: 12,
+    fontSize: 16,
     fill: 0xffd740, // Gold color for money
     fontWeight: 'bold',
     align: 'center',
@@ -125,7 +184,7 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
 
   const betTextStyle: any = useMemo(() => ({
     fontFamily: 'Arial',
-    fontSize: 10,
+    fontSize: 12,
     fill: 0xff6b6b, // Red color for bets
     fontWeight: 'bold',
     align: 'center',
@@ -133,10 +192,18 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
 
   const dealerTextStyle: any = useMemo(() => ({
     fontFamily: 'Arial',
-    fontSize: 8,
+    fontSize: 10,
     fill: 0x000000,
     fontWeight: 'bold',
     align: 'center',
+  }), []);
+
+  const emptyTextStyle: any = useMemo(() => ({
+    fontFamily: 'Arial',
+    fontSize: 12,
+    fill: 0x888888,
+    align: 'center',
+    fontWeight: 'normal',
   }), []);
 
   // Helper function to safely convert values to strings
@@ -150,7 +217,8 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
     return (
       <Container x={x} y={y}>
         <Graphics draw={drawSeat} />
-        <Text style={nameTextStyle} x={0} y={-18} text="Empty Seat" />
+        <Text style={emptyTextStyle} x={0} y={-10} text="Empty" />
+        <Text style={emptyTextStyle} x={0} y={5} text={`Seat ${seatIndex + 1}`} />
       </Container>
     );
   }
@@ -173,10 +241,10 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
       <Text 
         style={nameTextStyle} 
         x={0} 
-        y={-18}
+        y={-25}
         text={(() => {
           const name = safeText(player.name);
-          return name.length > 12 ? name.substring(0, 12) + '...' : name;
+          return name.length > 10 ? name.substring(0, 10) + '...' : name;
         })()}
       />
       
@@ -184,16 +252,60 @@ export const PlayerSeat: React.FC<PlayerSeatProps> = ({
       <Text 
         style={stackTextStyle} 
         x={0} 
-        y={12}
+        y={18}
         text={`$${safeText(player.stack)}`}
       />
+      
+      {/* Pocket cards */}
+      {player.hole && player.hole.length > 0 && (
+        <Container x={0} y={45}>
+          {player.hole.map((card, index) => (
+            <Container key={`hole-${index}`} x={(index - 0.5) * 28} y={0}>
+              <Graphics
+                draw={(g: any) => drawCard(g, card, !showCards)}
+              />
+              {showCards && card && (
+                <Container>
+                  {/* Rank */}
+                  <Text
+                    text={getRankDisplay(card.rank)}
+                    style={{
+                      fontFamily: 'Arial',
+                      fontSize: 6,
+                      fill: card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000,
+                      align: 'center',
+                      fontWeight: 'bold',
+                    } as any}
+                    x={-8}
+                    y={-12}
+                  />
+                  
+                  {/* Suit */}
+                  <Text
+                    text={getSuitSymbol(card.suit)}
+                    style={{
+                      fontFamily: 'Arial',
+                      fontSize: 8,
+                      fill: card.suit === 'h' || card.suit === 'd' ? 0xff0000 : 0x000000,
+                      align: 'center',
+                      fontWeight: 'bold',
+                    } as any}
+                    x={0}
+                    y={-2}
+                  />
+                </Container>
+              )}
+            </Container>
+          ))}
+        </Container>
+      )}
       
       {/* Current bet (if any) */}
       {currentBet > 0 && (
         <Text 
           style={betTextStyle} 
           x={0} 
-          y={25}
+          y={35}
           text={`Bet: $${safeText(currentBet)}`}
         />
       )}
