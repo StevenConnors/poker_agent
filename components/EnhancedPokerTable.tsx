@@ -17,6 +17,9 @@ interface EnhancedPokerTableProps {
   onAction: (action: Action) => void;
   onStartHand: () => void;
   onLeaveGame: () => void;
+  onShowdown?: () => void;
+  onAwardWinnings?: () => void;
+  onCompleteHand?: () => void;
   showAllCards?: boolean;
   className?: string;
 }
@@ -28,6 +31,9 @@ const EnhancedPokerTable: React.FC<EnhancedPokerTableProps> = ({
   onAction,
   onStartHand,
   onLeaveGame,
+  onShowdown,
+  onAwardWinnings,
+  onCompleteHand,
   showAllCards = false,
   className = '',
 }) => {
@@ -153,6 +159,71 @@ const EnhancedPokerTable: React.FC<EnhancedPokerTableProps> = ({
                   </button>
                   <div className="text-gray-400 text-sm mt-2">
                     {seatedPlayers} players ready
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Hand completion controls - shown when hand is complete or at showdown */}
+              {(stage === 'showdown' || stage === 'finished') && (
+                <motion.div
+                  className="rounded-lg p-4 border-2"
+                  style={{
+                    backdropFilter: 'blur(8px)',
+                    borderColor: '#222',
+                    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.3)'
+                  }}
+                  initial={!reduceMotion ? { x: -20 } : undefined}
+                  animate={!reduceMotion ? { opacity: 1, x: 0 } : undefined}
+                  transition={!reduceMotion ? { delay: 0.3 } : undefined}
+                >
+                  <h3 className="text-white font-semibold mb-3">Hand Complete</h3>
+                  <div className="space-y-2">
+                    {stage === 'showdown' && onShowdown && (
+                      <button
+                        onClick={onShowdown}
+                        className="w-full font-bold py-2 px-4 rounded-lg transition-all border-2 text-sm"
+                        style={{
+                          background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
+                          borderColor: '#A855F7',
+                          color: 'white',
+                          boxShadow: '0 4px 12px rgba(124, 58, 237, 0.4)'
+                        }}
+                      >
+                        Run Showdown
+                      </button>
+                    )}
+                    {stage === 'finished' && gameState.winners && onAwardWinnings && (
+                      <button
+                        onClick={onAwardWinnings}
+                        className="w-full font-bold py-2 px-4 rounded-lg transition-all border-2 text-sm"
+                        style={{
+                          background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+                          borderColor: '#FBBF24',
+                          color: 'white',
+                          boxShadow: '0 4px 12px rgba(217, 119, 6, 0.4)'
+                        }}
+                      >
+                        Award Winnings
+                      </button>
+                    )}
+                    {stage === 'finished' && onCompleteHand && (
+                      <button
+                        onClick={onCompleteHand}
+                        className="w-full font-bold py-2 px-4 rounded-lg transition-all border-2 text-sm"
+                        style={{
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          borderColor: '#34D399',
+                          color: 'white',
+                          boxShadow: '0 4px 12px rgba(5, 150, 105, 0.4)'
+                        }}
+                      >
+                        Complete Hand & Next
+                      </button>
+                    )}
+                  </div>
+                  <div className="text-gray-400 text-xs mt-2">
+                    {stage === 'showdown' && 'Determine winners'}
+                    {stage === 'finished' && gameState.winners && 'Award chips and start next hand'}
                   </div>
                 </motion.div>
               )}
@@ -328,6 +399,59 @@ const EnhancedPokerTable: React.FC<EnhancedPokerTableProps> = ({
               >
                 Start New Hand ({seatedPlayers} players)
               </button>
+            </motion.div>
+          )}
+
+          {/* Mobile hand completion controls */}
+          {(stage === 'showdown' || stage === 'finished') && (
+            <motion.div
+              className="xl:hidden mt-4 text-center space-y-2"
+              initial={!reduceMotion ? { y: 20 } : undefined}
+              animate={!reduceMotion ? { opacity: 1, y: 0 } : undefined}
+              transition={!reduceMotion ? { delay: 0.7 } : undefined}
+            >
+              {stage === 'showdown' && onShowdown && (
+                <button
+                  onClick={onShowdown}
+                  className="w-full font-bold py-3 px-6 rounded-lg transition-all border-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)',
+                    borderColor: '#A855F7',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(124, 58, 237, 0.4)'
+                  }}
+                >
+                  Run Showdown
+                </button>
+              )}
+              {stage === 'finished' && gameState.winners && onAwardWinnings && (
+                <button
+                  onClick={onAwardWinnings}
+                  className="w-full font-bold py-3 px-6 rounded-lg transition-all border-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+                    borderColor: '#FBBF24',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(217, 119, 6, 0.4)'
+                  }}
+                >
+                  Award Winnings
+                </button>
+              )}
+              {stage === 'finished' && onCompleteHand && (
+                <button
+                  onClick={onCompleteHand}
+                  className="w-full font-bold py-3 px-6 rounded-lg transition-all border-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    borderColor: '#34D399',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.4)'
+                  }}
+                >
+                  Complete Hand & Next
+                </button>
+              )}
             </motion.div>
           )}
         </div>

@@ -58,7 +58,7 @@ export default function PlayerSeat({
         </div>
 
         {/* Player cards */}
-        <div className="flex justify-center gap-1 mb-2">
+        <div className="flex justify-center gap-2 mb-2">
           {player.hole && player.hole.length > 0 ? (
             player.hole.map((card, index) => (
               <Card

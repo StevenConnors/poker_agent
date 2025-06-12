@@ -113,10 +113,25 @@ export default function GamePage() {
 
   // Handle player actions
   const handleAction = async (action: any) => {
-    if (!gameId) return;
+    if (!gameId || !playerId) return;
+    
+    // Find current player's seat index
+    const currentPlayerSeat = gameState?.table.seats.find(seat => seat.player?.id === playerId);
+    if (!currentPlayerSeat || currentPlayerSeat.player?.seatIndex === undefined) {
+      setError('Player not found in game');
+      return;
+    }
+    
+    // Populate playerId and seatIndex if they're missing
+    const completeAction = {
+      ...action,
+      playerId: playerId,
+      seatIndex: currentPlayerSeat.player.seatIndex,
+      timestamp: action.timestamp || Date.now()
+    };
     
     try {
-      const result = await callGameAPI('applyAction', { gameId, action });
+      const result = await callGameAPI('applyAction', { gameId, action: completeAction });
       
       if (result.ok) {
         // Reload game state after action
@@ -160,6 +175,57 @@ export default function GamePage() {
     // Reset store and navigate home
     reset();
     router.push('/');
+  };
+
+  // Handle showdown
+  const handleShowdown = async () => {
+    if (!gameId) return;
+    
+    try {
+      const result = await callGameAPI('showdown', { gameId });
+      
+      if (result.ok) {
+        await loadGameState();
+      } else {
+        setError(result.error || 'Failed to run showdown');
+      }
+    } catch {
+      setError('Failed to run showdown');
+    }
+  };
+
+  // Handle award winnings
+  const handleAwardWinnings = async () => {
+    if (!gameId) return;
+    
+    try {
+      const result = await callGameAPI('awardWinnings', { gameId });
+      
+      if (result.ok) {
+        await loadGameState();
+      } else {
+        setError(result.error || 'Failed to award winnings');
+      }
+    } catch {
+      setError('Failed to award winnings');
+    }
+  };
+
+  // Handle complete hand
+  const handleCompleteHand = async () => {
+    if (!gameId) return;
+    
+    try {
+      const result = await callGameAPI('completeHand', { gameId });
+      
+      if (result.ok) {
+        await loadGameState();
+      } else {
+        setError(result.error || 'Failed to complete hand');
+      }
+    } catch {
+      setError('Failed to complete hand');
+    }
   };
 
   // Set up auto-refresh and join game
@@ -378,6 +444,9 @@ export default function GamePage() {
         onAction={handleAction}
         onStartHand={handleStartHand}
         onLeaveGame={handleLeaveGame}
+        onShowdown={handleShowdown}
+        onAwardWinnings={handleAwardWinnings}
+        onCompleteHand={handleCompleteHand}
         showAllCards={false} // Set to true for debugging
       />
     </div>

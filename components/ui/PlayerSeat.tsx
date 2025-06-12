@@ -212,7 +212,7 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         className="absolute -bottom-16 left-1/2 transform -translate-x-1/2"
         style={{ zIndex: 10 }}
       >
-        <div className="flex gap-1">
+        <div className="flex gap-2">
           {player.hole && player.hole.length > 0 ? (
             player.hole.map((card, index) => (
               <Card

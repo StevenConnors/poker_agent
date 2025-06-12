@@ -50,14 +50,13 @@ const CommunityCardsRow: React.FC<CommunityCardsRowProps> = ({
     const dealDelay = index * 0.2;
 
     return (
-      <div key={index} className="relative">
+      <div key={index} className="flex-shrink-0">
         <Card
           card={shouldShowCard ? card : null}
           isHidden={!shouldShowCard}
           size="medium"
           isDealing={isVisible && stage !== 'init' && stage !== 'preflop'}
           dealDelay={dealDelay}
-          className="mx-1"
         />
       </div>
     );
@@ -103,7 +102,7 @@ const CommunityCardsRow: React.FC<CommunityCardsRowProps> = ({
       
       {/* Cards container */}
       <motion.div
-        className="flex items-center justify-center gap-2 px-6 py-4 rounded-lg"
+        className="flex items-center justify-center gap-4 px-6 py-4 rounded-lg"
         style={{
           backgroundColor: 'rgba(0, 0, 0, 0.4)',
           backdropFilter: 'blur(8px)',

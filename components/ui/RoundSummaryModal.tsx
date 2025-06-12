@@ -261,7 +261,7 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
                      
                      {/* Best hand cards */}
                      {result.hand.cards && (
-                       <div className="flex gap-1">
+                       <div className="flex gap-2">
                          {result.hand.cards.slice(0, 5).map((card, cardIndex) => (
                            <Card
                              key={cardIndex}
