@@ -76,7 +76,6 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
       y: 50
     },
     visible: {
-      opacity: 1,
       scale: 1,
       y: 0,
       transition: {
@@ -99,16 +98,15 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
   const resultItemVariants = {
     hidden: { x: -20 },
     visible: { 
-      opacity: 1, 
       x: 0,
       transition: { duration: 0.3 }
     }
   };
 
   const overlayVariants = {
-    hidden: {},
-    visible: { opacity: 1 },
-    exit: {}
+    hidden: { backgroundColor: 'rgba(0, 0, 0, 0)' },
+    visible: { backgroundColor: 'rgba(0, 0, 0, 0.6)' },
+    exit: { backgroundColor: 'rgba(0, 0, 0, 0)' }
   };
 
   if (!isOpen) return null;
@@ -116,40 +114,26 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
+        {/* Backdrop with explicit color animation */}
         <motion.div
           className="absolute inset-0"
-          style={{
-            backdropFilter: 'blur(8px)'
-          }}
           variants={!reduceMotion ? overlayVariants : {}}
-          initial={!reduceMotion ? "hidden" : undefined}
+          initial={!reduceMotion ? "hidden" : { backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
           animate={!reduceMotion ? "visible" : undefined}
           exit={!reduceMotion ? "exit" : undefined}
           onClick={onClose}
         />
 
-        {/* Modal */}
+        {/* Modal with consistent white background */}
         <motion.div
-          className={`relative rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${className}`}
-          style={{
-            backdropFilter: 'blur(16px)',
-            border: '2px solid #374151',
-            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-          }}
+          className={`relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-gray-300 ${className}`}
           variants={!reduceMotion ? modalVariants : {}}
           initial={!reduceMotion ? "hidden" : undefined}
           animate={!reduceMotion ? "visible" : undefined}
           exit={!reduceMotion ? "exit" : undefined}
         >
-          {/* Header */}
-          <div 
-            className="sticky top-0 p-6 rounded-t-xl border-b"
-            style={{
-              background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
-              borderColor: '#374151'
-            }}
-          >
+          {/* Header with enhanced contrast */}
+          <div className="sticky top-0 p-6 bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 rounded-t-xl border-b border-gray-300">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <Trophy size={24} className="text-yellow-900" />
@@ -157,18 +141,14 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 text-yellow-800 hover:text-yellow-900 rounded-lg transition-colors"
-                style={{
-                  background: 'rgba(139, 69, 19, 0.2)',
-                  border: '1px solid rgba(139, 69, 19, 0.3)'
-                }}
+                className="p-2 text-yellow-800 hover:text-yellow-900 rounded-lg transition-colors bg-yellow-200 hover:bg-yellow-300 border border-yellow-700"
                 aria-label="Close modal"
               >
                 <X size={20} />
               </button>
             </div>
             
-            {/* Summary */}
+            {/* Summary with better contrast */}
             <div className="mt-4 flex items-center justify-between text-yellow-900">
               <div className="text-sm font-medium">
                 {results.length} player{results.length !== 1 ? 's' : ''} in showdown
@@ -180,55 +160,37 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
             </div>
           </div>
 
-          {/* Results */}
-          <div className="p-6 space-y-4">
+          {/* Results with light background for readability */}
+          <div className="p-6 space-y-4 bg-white">
             {sortedResults.map((result, index) => (
               <motion.div
                 key={`${result.playerId}-${index}`}
-                className="relative p-4 rounded-lg border-2"
-                style={{
-                  background: index === 0 
-                    ? 'linear-gradient(135deg, rgba(255, 215, 64, 0.15) 0%, rgba(255, 165, 0, 0.1) 100%)'
-                    : 'rgba(55, 65, 81, 0.4)',
-                  borderColor: index === 0 ? '#FFD700' : '#6B7280',
-                  backdropFilter: 'blur(8px)',
-                  boxShadow: index === 0 
-                    ? '0 8px 25px rgba(255, 215, 64, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-                    : 'inset 0 1px 0 rgba(255, 255, 255, 0.05)'
-                }}
+                className={`relative p-4 rounded-lg border-2 ${
+                  index === 0 
+                    ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-400 shadow-lg' 
+                    : 'bg-slate-100 border-gray-300 shadow-md'
+                }`}
                 variants={!reduceMotion ? resultItemVariants : {}}
               >
-                {/* Winner crown */}
+                {/* Winner crown - always visible */}
                 {index === 0 && (
-                  <div 
-                    className="absolute -top-3 -right-3 rounded-full p-2 shadow-lg"
-                    style={{
-                      background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
-                      color: '#8B4513'
-                    }}
-                  >
+                  <div className="absolute -top-3 -right-3 bg-gradient-to-br from-yellow-400 to-yellow-500 text-yellow-900 rounded-full p-2 shadow-lg border border-yellow-600">
                     <Trophy size={16} />
                   </div>
                 )}
 
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-10 h-10 rounded-full flex items-center justify-center border-2"
-                      style={{
-                        background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-                        borderColor: '#60A5FA'
-                      }}
-                    >
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 border-2 border-blue-400 shadow-md">
                       <span className="text-white font-bold text-sm">
                         {result.seatIndex + 1}
                       </span>
                     </div>
                     <div>
-                      <div className="text-white font-medium">
+                      <div className="text-gray-900 font-medium">
                         Player {result.seatIndex + 1}
                       </div>
-                      <div className="text-gray-400 text-sm">
+                      <div className="text-gray-600 text-sm">
                         Seat {result.seatIndex + 1}
                       </div>
                     </div>
@@ -237,77 +199,79 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
                   <div className="text-right">
                     <div 
                       className={`text-lg font-bold ${
-                        result.amountWon > 0 ? 'text-green-400' : 'text-gray-400'
+                        result.amountWon > 0 ? 'text-green-600' : 'text-gray-600'
                       }`}
                     >
                       {result.amountWon > 0 ? '+' : ''}{formatAmount(result.amountWon)}
                     </div>
-                    <div className="text-gray-400 text-sm">
+                    <div className="text-gray-600 text-sm font-medium">
                       {result.amountWon > 0 ? 'Won' : 'Lost'}
                     </div>
                   </div>
                 </div>
 
-                {/* Hand information */}
+                {/* Hand information with improved contrast */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                     {/* Hand rank */}
-                   <div className="space-y-2">
-                     <div className="flex items-center space-x-2">
-                       <span className="text-lg">{getHandRankIcon(result.hand.rank)}</span>
-                       <span className="text-white font-medium">
-                         {getHandRankDisplay(result.hand.rank)}
-                       </span>
-                     </div>
-                     
-                     {/* Best hand cards */}
-                     {result.hand.cards && (
-                       <div className="flex gap-2">
-                         {result.hand.cards.slice(0, 5).map((card, cardIndex) => (
-                           <Card
-                             key={cardIndex}
-                             card={card}
-                             size="small"
-                             className="opacity-90"
-                           />
-                         ))}
-                       </div>
-                     )}
-                   </div>
+                  {/* Hand rank */}
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{getHandRankIcon(result.hand.rank)}</span>
+                      <span className="text-gray-900 font-medium">
+                        {getHandRankDisplay(result.hand.rank)}
+                      </span>
+                    </div>
+                    
+                    {/* Best hand cards - always visible */}
+                    {result.hand.cards && (
+                      <div className="flex gap-2">
+                        {result.hand.cards.slice(0, 5).map((card, cardIndex) => (
+                          <Card
+                            key={cardIndex}
+                            card={card}
+                            size="small"
+                            className=""
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                   {/* Player info */}
-                   <div className="space-y-2">
-                     <div className="text-gray-400 text-sm">Hand Value</div>
-                     <div className="text-white text-sm font-mono">
-                       {result.hand.value}
-                     </div>
-                     {result.hand.kickers.length > 0 && (
-                       <div className="text-gray-500 text-xs">
-                         Kickers: {result.hand.kickers.join(', ')}
-                       </div>
-                     )}
-                   </div>
+                  {/* Player info with enhanced readability */}
+                  <div className="space-y-2">
+                    <div className="text-gray-700 text-sm font-medium">Hand Value</div>
+                    <div className="text-gray-900 text-sm font-mono bg-gray-200 px-3 py-2 rounded border">
+                      {result.hand.value}
+                    </div>
+                    {result.hand.kickers.length > 0 && (
+                      <div className="text-gray-600 text-xs font-medium">
+                        Kickers: {result.hand.kickers.join(', ')}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Hidden accessibility text for screen readers */}
+                <span className="sr-only">
+                  Player {result.seatIndex + 1} has {getHandRankDisplay(result.hand.rank)} 
+                  {result.amountWon > 0 ? ` and won ${formatAmount(result.amountWon)}` : ' and lost'}
+                </span>
               </motion.div>
             ))}
           </div>
 
-          {/* Footer */}
-          <div 
-            className="p-4 border-t text-center"
-            style={{ borderColor: '#374151' }}
-          >
+          {/* Footer with consistent light background */}
+          <div className="p-4 border-t border-gray-300 text-center bg-white rounded-b-xl">
             <button
               onClick={onClose}
-              className="px-6 py-2 rounded-lg font-medium transition-all border-2"
-              style={{
-                background: 'linear-gradient(135deg, #374151 0%, #1F2937 100%)',
-                borderColor: '#6B7280',
-                color: 'white',
-                boxShadow: '0 4px 12px rgba(55, 65, 81, 0.4)'
-              }}
+              className="px-6 py-2 bg-gradient-to-br from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-lg font-medium transition-all border border-gray-500 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
               Continue Playing
             </button>
+          </div>
+
+          {/* Hidden aria-live region for accessibility */}
+          <div aria-live="polite" className="sr-only">
+            {isOpen && `Hand results: ${results.length} players, total winnings ${formatAmount(totalWinnings)}`}
           </div>
         </motion.div>
       </div>

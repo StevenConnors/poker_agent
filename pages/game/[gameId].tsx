@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../../stores/gameStore';
-import EnhancedPokerTable from '../../components/EnhancedPokerTable';
+import { PixiPokerTable } from '../../components/PixiPokerTable';
 
 export default function GamePage() {
   const router = useRouter();
@@ -436,8 +436,8 @@ export default function GamePage() {
         </motion.div>
       )}
 
-      {/* Enhanced poker table */}
-      <EnhancedPokerTable
+      {/* PixiJS poker table */}
+      <PixiPokerTable
         gameState={gameState}
         currentPlayerId={playerId as string}
         legalActions={legalActions}
