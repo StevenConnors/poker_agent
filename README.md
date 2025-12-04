@@ -1,186 +1,209 @@
-# Poker App
+# Poker Patio 🎰
 
-A comprehensive Texas Hold'em poker engine with Next.js server and CLI client. Features complete game logic, advanced betting systems, side pot calculations, and multi-player support.
+A visually stunning, dark-themed Texas Hold'em poker application built with Next.js 14, TypeScript, and Framer Motion. Features an elliptical felt table design with casino-grade aesthetics and smooth animations.
 
-## ✅ **Current Status**
+## 🎨 Design Features
 
-This is a **fully functional poker application** with:
+- **Dark Casino Theme**: Authentic poker room atmosphere with felt-green table and proper contrast
+- **Elliptical Table Layout**: 6-seat arrangement with 30° increments around an elliptical felt surface
+- **Glowing Effects**: Current player seat highlights with subtle glow animations
+- **Chip Stacking**: Realistic vertical chip stacks with proper denominations
+- **Card Animations**: Smooth deal-in effects with SVG-based card rendering
+- **Responsive Design**: Scales perfectly across desktop and mobile devices
 
-- **Complete Texas Hold'em Implementation**: All game stages (preflop, flop, turn, river, showdown)
-- **Advanced Features**: Side pots, all-in scenarios, proper button movement, tie-breaking
-- **Multi-player Support**: Up to 9 players with real-time gameplay
-- **Comprehensive Testing**: 102 tests passing with 90.52% code coverage
-- **Production-ready Engine**: Mathematically verified chip conservation
+## 🛠️ Tech Stack
 
-### **What Works Right Now**
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **UI Components**: shadcn/ui
+- **Animations**: Framer Motion
+- **State Management**: Zustand
+- **Icons**: Lucide React
+- **Testing**: Vitest + React Testing Library
 
-✅ Full poker games from start to finish  
-✅ Complex all-in scenarios with side pots  
-✅ Multiple CLI sessions playing simultaneously  
-✅ Complete hand evaluation (high card → royal flush)  
-✅ Proper betting rounds with blinds  
-✅ Real-time game state synchronization  
+## 🚀 Getting Started
 
-## 🎮 **Quick Start**
+### Prerequisites
 
-### 1. Start the Server
+- Node.js 18+ 
+- pnpm (recommended) or npm
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-org/poker_app.git
+   cd poker_app
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   # or
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   pnpm dev
+   # or
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 📖 Development Commands
+
+### Development Server
 ```bash
-npm run dev
+pnpm dev          # Start Next.js development server
+npm run dev       # Alternative with npm
 ```
-Server runs at `http://localhost:3000`
 
-### 2. Start CLI Client(s)
+### Storybook
 ```bash
-npm run cli
+pnpm storybook    # Start Storybook development server
+npm run storybook # Alternative with npm
 ```
+Opens Storybook at [http://localhost:6006](http://localhost:6006) for component development and testing.
 
-### 3. Create & Join a Game
+### Testing
 ```bash
-# In CLI session 1:
-create                           # Creates new game, returns gameId
-join game_12345 Alice           # Join as Alice
+pnpm test         # Run all tests with coverage
+npm run test      # Alternative with npm
 
-# In CLI session 2:
-join game_12345 Bob             # Join same game as Bob
+pnpm test:watch   # Run tests in watch mode
+npm run test:watch
+
+pnpm test:ui      # Run tests with Vitest UI
+npm run test:ui
 ```
 
-### 4. Play Poker!
+### Linting & Formatting
 ```bash
-start                           # Start first hand (need 2+ players)
-check                          # Check
-call                           # Call current bet
-bet 100                        # Bet 100 chips
-raise 200                      # Raise to 200 total
-fold                           # Fold hand
-all-in                         # Go all-in
+pnpm lint         # Run ESLint
+npm run lint
+
+pnpm lint:fix     # Fix ESLint issues automatically
+npm run lint:fix
+
+pnpm format       # Format code with Prettier
+npm run format
 ```
 
-## 🃏 **Game Features**
-
-### **Core Gameplay**
-- **Texas Hold'em Rules**: Standard poker with community cards
-- **Hand Rankings**: Complete evaluation from high card to royal flush
-- **Betting Actions**: Check, call, bet, raise, fold, all-in
-- **Blinds System**: Configurable small/big blinds with proper posting
-- **Button Movement**: Correct dealer button advancement
-
-### **Advanced Features**
-- **Side Pots**: Automatic calculation for multiple all-in players
-- **Tie Breaking**: Proper winner determination with kickers
-- **Multi-way All-ins**: Complex scenarios handled correctly
-- **Chip Conservation**: Mathematically verified - no chips lost or created
-- **Reconnection**: Players can disconnect and rejoin
-
-### **Multi-player Support**
-- **Up to 9 Players**: Full table support
-- **Real-time Sync**: All players see consistent game state
-- **Seat Management**: Automatic or manual seat selection
-- **Spectator Ready**: Foundation for observer mode
-
-## 🏗️ **Architecture**
-
-```
-┌─────────────────┐    HTTP     ┌──────────────────┐
-│   CLI Client    │ ◄─────────► │   Next.js API    │
-│   (Multiple)    │             │   (/api/game)    │
-└─────────────────┘             └──────────────────┘
-                                          │
-                                          ▼
-                                ┌──────────────────┐
-                                │   Game Engine    │
-                                │   (/engine)      │
-                                └──────────────────┘
-```
-
-### **Components**
-- **`/engine/`**: Pure game logic, no I/O dependencies
-- **`/pages/api/`**: Server-side state management and HTTP endpoints  
-- **`/cli/`**: Interactive command-line client
-
-### **Design Benefits**
-- **Clean Separation**: Game logic isolated from presentation
-- **Multiple Clients**: Easy to add web/mobile interfaces
-- **Testable**: Engine logic fully unit tested
-- **Scalable**: Server manages multiple concurrent games
-
-## 🎯 **CLI Commands**
-
-### **Game Management**
-- `create` - Create new game
-- `join <gameId> <name>` - Join existing game
-- `leave` - Leave current game
-- `select <gameId>` - Switch between games
-- `games` - List all active games
-
-### **Gameplay**
-- `start` - Start new hand
-- `info` - Show detailed game state
-- `actions` - Show legal actions
-- `check` / `call` / `fold` - Betting actions
-- `bet <amount>` / `raise <amount>` - Betting with amounts
-- `all-in` - Go all-in
-
-### **Utility**
-- `help` - Show all commands
-- `quit` - Exit CLI
-
-## 🧪 **Testing**
-
-Comprehensive test suite with 102 passing tests:
-
+### Build & Production
 ```bash
-npm test                        # Run all tests
-npm test -- --coverage         # With coverage report
+pnpm build        # Build for production
+npm run build
+
+pnpm start        # Start production server
+npm run start
 ```
 
-### **Test Coverage**
-- **Integration Tests**: Full game scenarios
-- **Unit Tests**: Hand evaluation, betting, pot management
-- **Edge Cases**: All-in scenarios, side pots, ties
-- **90.52% Code Coverage**: High confidence in reliability
+## 🎮 Game Features
 
-## 🔧 **Technical Details**
+### Core Gameplay
+- **Texas Hold'em**: Full implementation with pre-flop, flop, turn, and river stages
+- **Multi-player Support**: Up to 6 players per table
+- **Betting Actions**: Fold, check, call, bet, raise, all-in
+- **Pot Management**: Main pot and side pots with proper split logic
+- **Hand Rankings**: Complete poker hand evaluation
 
-### **Tech Stack**
-- **TypeScript**: Full type safety
-- **Next.js**: Server framework
-- **Jest**: Testing framework  
-- **ESLint**: Code quality
-- **Node.js**: Runtime environment
+### UI Components
+- **EnhancedPokerTable**: Main game container with elliptical felt design
+- **PlayerSeat**: Individual player displays with avatars and chip stacks
+- **CommunityCardsRow**: 5-card display with stage progression indicators
+- **PotDisplay**: Elegant pill-shaped pot with chip visualization
+- **ControlPanel**: Action buttons with dark theme styling
+- **ActionLog**: Live game history with smooth animations
 
-### **Performance**
-- **Efficient**: Handles 9-player games smoothly
-- **Memory Safe**: Proper cleanup and state management
-- **Deterministic**: Reproducible game outcomes for testing
+### Accessibility
+- **Screen Reader Support**: Proper ARIA labels and semantic HTML
+- **Reduced Motion**: Respects `prefers-reduced-motion` settings
+- **Keyboard Navigation**: Full keyboard accessibility
+- **High Contrast**: Dark theme optimized for readability
 
-### **Code Quality**
-- **90%+ Test Coverage**: Comprehensive test suite
-- **TypeScript**: Full type safety throughout
-- **ESLint**: Consistent code style
-- **Modular**: Clean separation of concerns
+## 🎯 Design Tokens
 
-## 🚀 **What's Next**
+```css
+/* Core Colors */
+--felt-green: #15703e;
+--bg-dark: #0b0b0b;
+--seat-bg: rgba(0,0,0,0.85);
+--text-light: #ffffff;
+--highlight-glow: #ffd740;
 
-See `changes.md` for detailed development roadmap. Key next steps:
+/* Table Styling */
+--table-clip-path: ellipse(85% 65% at 50% 50%);
+--table-gradient: radial-gradient(circle at center, rgba(21,112,62,1) 0%, rgba(0,0,0,1) 85%);
 
-1. **Database Integration**: Persistent game storage
-2. **Web Frontend**: Browser-based gameplay
-3. **Real-time Updates**: WebSocket connections
-4. **Tournament Mode**: Multi-table tournaments
+/* Sizing */
+--avatar-size: 40px;
+--dealer-btn-size: 18px;
+--border-radius: 8px;
+```
 
-## 🤝 **Contributing**
+## 🧪 Testing Strategy
 
-The codebase is well-structured and tested. Key areas for contribution:
+### Unit Tests
+- Component rendering and props
+- Game logic and state management
+- User interaction handlers
 
-- **Web Frontend**: React components for browser play
-- **Database Layer**: PostgreSQL/SQLite integration  
-- **Tournament Features**: Multi-table tournament support
-- **AI Players**: Computer opponents
+### Integration Tests
+- Game flow scenarios
+- Multi-player interactions
+- UI state synchronization
 
-## 📝 **License**
+### Visual Tests
+- Component snapshots
+- Responsive design validation
+- Animation behavior
 
-[Add your license here]
+## 📁 Project Structure
+
+```
+poker_app/
+├── components/
+│   ├── ui/                 # Reusable UI components
+│   │   ├── Card.tsx       # SVG-based playing cards
+│   │   ├── Chip.tsx       # Stacked poker chips
+│   │   ├── PlayerSeat.tsx # Player information display
+│   │   └── ...
+│   ├── EnhancedPokerTable.tsx  # Main game table
+│   └── ...
+├── engine/                 # Game logic and types
+├── stores/                 # Zustand state management
+├── styles/                 # Global styles and themes
+└── tests/                  # Test suites
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+### Development Guidelines
+- Follow TypeScript best practices
+- Use semantic commit messages
+- Add tests for new features
+- Ensure accessibility compliance
+- Maintain design token consistency
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🎲 Acknowledgments
+
+- Inspired by world-class poker rooms and casinos
+- Built with modern web technologies for optimal performance
+- Designed for both casual and serious poker players
 
 ---
 
-**Status**: ✅ **Core Game Complete** - Fully playable with all standard poker features! 
+**Ready to deal in?** Start your development server and experience the most immersive poker interface on the web! 🃏✨ 
