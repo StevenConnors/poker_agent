@@ -1,5 +1,5 @@
 import { GameState, Action, NewGameConfig, Result, PokerError, JoinGameConfig } from '../../engine/types';
-import { newGame, legalActions, applyAction, showdown, awardWinnings, completeHand } from '../../engine';
+import { legalActions, applyAction, showdown, awardWinnings, completeHand } from '../../engine';
 import { joinGame, leaveGame, initializeSeats, canStartHand, getActivePlayers, getSeatedPlayers } from '../../engine/player-manager';
 import { startHand, validateHandStart } from '../../engine/game-flow';
 
@@ -51,10 +51,9 @@ export class GameManager {
   }
 
   static createGame(config: NewGameConfig): { gameId: string; gameState: GameState } {
-    const gameId = `game_${++gameIdCounter}`;
-    const gameState = newGame(config);
-    gameStates.set(gameId, gameState);
-    return { gameId, gameState };
+    // For now, use createEmptyGame since newGame is deprecated
+    const result = this.createEmptyGame(config);
+    return { gameId: result.gameId, gameState: result.gameState };
   }
 
   static getGame(gameId: string): GameState | null {
