@@ -1,0 +1,47 @@
+[
+  {
+    "id": "1",
+    "text": "$ACME just crushed earnings, revenue growth is insane. Very bullish, loading up more shares!",
+    "author": "growthhunter",
+    "followers": 48000,
+    "likes": 1200,
+    "retweets": 340,
+    "createdAt": "2024-02-01"
+  },
+  {
+    "id": "2",
+    "text": "Acme Robotics margins keep expanding and free cash flow is strong. Long term winner.",
+    "author": "valueguy",
+    "followers": 15000,
+    "likes": 210,
+    "retweets": 45,
+    "createdAt": "2024-02-02"
+  },
+  {
+    "id": "3",
+    "text": "Not sure about $ACME at these prices, feels a bit overvalued after the rally.",
+    "author": "cautiousbear",
+    "followers": 9000,
+    "likes": 80,
+    "retweets": 12,
+    "createdAt": "2024-02-03"
+  },
+  {
+    "id": "4",
+    "text": "New $ACME warehouse robot demo is incredible. Momentum and record backlog. Upgrade incoming?",
+    "author": "techanalyst",
+    "followers": 120000,
+    "likes": 3400,
+    "retweets": 900,
+    "createdAt": "2024-02-04"
+  },
+  {
+    "id": "5",
+    "text": "Heard rumors of a lawsuit against Acme. Watching closely, could be a risk.",
+    "author": "rumormill",
+    "followers": 5000,
+    "likes": 30,
+    "retweets": 8,
+    "createdAt": "2024-02-05"
+  }
+]

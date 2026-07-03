@@ -1,0 +1,44 @@
+{
+  "ticker": "ACME",
+  "name": "Acme Robotics Inc.",
+  "currency": "USD",
+  "currentPrice": 42.5,
+  "years": [
+    {
+      "year": 2021,
+      "revenue": 1800000000,
+      "netIncome": 210000000,
+      "freeCashFlow": 180000000,
+      "totalDebt": 300000000,
+      "cashAndEquivalents": 450000000,
+      "shareholdersEquity": 900000000,
+      "sharesOutstanding": 120000000,
+      "currentAssets": 780000000,
+      "currentLiabilities": 410000000
+    },
+    {
+      "year": 2022,
+      "revenue": 2100000000,
+      "netIncome": 260000000,
+      "freeCashFlow": 220000000,
+      "totalDebt": 320000000,
+      "cashAndEquivalents": 520000000,
+      "shareholdersEquity": 1050000000,
+      "sharesOutstanding": 121000000,
+      "currentAssets": 860000000,
+      "currentLiabilities": 430000000
+    },
+    {
+      "year": 2023,
+      "revenue": 2520000000,
+      "netIncome": 340000000,
+      "freeCashFlow": 300000000,
+      "totalDebt": 310000000,
+      "cashAndEquivalents": 640000000,
+      "shareholdersEquity": 1250000000,
+      "sharesOutstanding": 122000000,
+      "currentAssets": 980000000,
+      "currentLiabilities": 450000000
+    }
+  ]
+}

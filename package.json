@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "cli": "node --loader ts-node/esm --experimental-specifier-resolution=node cli/index.ts",
+    "bot": "node --loader ts-node/esm --experimental-specifier-resolution=node trading-bot/cli.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "test": "jest --coverage"
